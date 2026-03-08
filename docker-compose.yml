@@ -1,0 +1,210 @@
+# docker-compose.yml - 多容器编排配置文件
+# 什么是docker-compose？
+# docker-compose就像是一个"指挥官"，可以同时管理多个容器
+# 它可以一键启动多个服务，并自动处理服务之间的依赖关系
+
+# 版本号：指定docker-compose配置文件的版本
+# 3.8是较新的版本，支持更多功能
+version: '3.8'
+
+# services：定义要运行的所有服务
+services:
+  # ==================== 应用服务 ====================
+  # app: 我们的主应用服务
+  app:
+    # build: 构建配置
+    # context: . 表示使用当前目录作为构建上下文
+    # dockerfile: Dockerfile 指定使用的Dockerfile文件名
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # container_name: 容器名称
+    # 给容器起一个容易识别的名字
+    container_name: video-app
+    
+    # restart: 重启策略
+    # unless-stopped: 除非手动停止，否则总是重启
+    # 这样可以保证服务的高可用性
+    restart: unless-stopped
+    
+    # ports: 端口映射
+    # "8888:8888" 表示：主机端口:容器端口
+    # 访问主机的8888端口，会被转发到容器的8888端口
+    ports:
+      - "8888:8888"
+    
+    # environment: 环境变量
+    # 这些变量会传递给容器内的程序
+    # 程序通过os.Getenv()读取这些变量
+    environment:
+      # 数据库配置
+      - DB_HOST=mysql          # 数据库主机名（使用服务名）
+      - DB_PORT=3306           # 数据库端口
+      - DB_USER=root           # 数据库用户名
+      - DB_PASSWORD=root123    # 数据库密码
+      - DB_NAME=video_website  # 数据库名称
+      
+      # Redis配置
+      - REDIS_HOST=redis       # Redis主机名（使用服务名）
+      - REDIS_PORT=6379        # Redis端口
+      - REDIS_PASSWORD=        # Redis密码（空表示无密码）
+      
+      # JWT配置
+      # 注意：生产环境应该使用强密码
+      - JWT_ACCESS_SECRET=your-access-secret-key-change-in-production
+      - JWT_REFRESH_SECRET=your-refresh-secret-key-change-in-production
+      
+      # 服务器配置
+      - SERVER_PORT=8888       # 服务器端口
+      - TZ=Asia/Shanghai       # 时区
+    
+    # volumes: 数据卷挂载
+    # 将主机的目录挂载到容器内
+    # 这样可以持久化数据，容器删除后数据不会丢失
+    volumes:
+      # 格式：主机路径:容器路径
+      - ./uploads:/app/uploads     # 上传文件目录
+      - ./logs:/app/logs           # 日志目录（可选）
+    
+    # depends_on: 服务依赖
+    # 表示app服务依赖mysql和redis服务
+    # Docker会先启动mysql和redis，再启动app
+    depends_on:
+      mysql:
+        condition: service_healthy  # 等待mysql健康检查通过
+      redis:
+        condition: service_healthy  # 等待redis健康检查通过
+    
+    # networks: 网络配置
+    # 将服务加入到指定的网络中
+    # 同一网络内的服务可以通过服务名互相访问
+    networks:
+      - video-network
+    
+    # healthcheck: 健康检查
+    # 定期检查服务是否正常运行
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/ping"]
+      interval: 30s    # 每30秒检查一次
+      timeout: 10s     # 超时时间10秒
+      retries: 3       # 连续失败3次才认为不健康
+      start_period: 40s  # 容器启动后40秒才开始检查
+
+  # ==================== MySQL服务 ====================
+  # mysql: 数据库服务
+  mysql:
+    # image: 使用官方MySQL 8.0镜像
+    image: mysql:8.0
+    
+    # container_name: 容器名称
+    container_name: video-mysql
+    
+    # restart: 重启策略
+    restart: unless-stopped
+    
+    # environment: 环境变量
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123        # root用户密码
+      - MYSQL_DATABASE=video_website       # 自动创建的数据库
+      - TZ=Asia/Shanghai                   # 时区
+    
+    # ports: 端口映射
+    # 主机的3306端口映射到容器的3306端口
+    # 这样可以从主机直接连接MySQL
+    ports:
+      - "3306:3306"
+    
+    # volumes: 数据卷挂载
+    volumes:
+      # 数据持久化：将MySQL数据存储在Docker卷中
+      # mysql_data是卷名，/var/lib/mysql是MySQL数据目录
+      - mysql_data:/var/lib/mysql
+      
+      # 初始化脚本（可选）
+      # 将init.sql挂载到容器的初始化目录
+      # MySQL容器启动时会自动执行这个脚本
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    
+    # command: 启动命令
+    # 覆盖默认的启动命令，添加自定义配置
+    command:
+      - --character-set-server=utf8mb4                    # 字符集设置为utf8mb4
+      - --collation-server=utf8mb4_unicode_ci             # 排序规则
+      - --default-authentication-plugin=mysql_native_password  # 认证插件
+    
+    # networks: 加入网络
+    networks:
+      - video-network
+    
+    # healthcheck: 健康检查
+    # 使用mysqladmin ping命令检查MySQL是否正常
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 10s    # 每10秒检查一次
+      timeout: 5s      # 超时时间5秒
+      retries: 5       # 连续失败5次才认为不健康
+      start_period: 30s  # 容器启动后30秒才开始检查
+
+  # ==================== Redis服务 ====================
+  # redis: 缓存服务
+  redis:
+    # image: 使用官方Redis 7 Alpine版本
+    # Alpine版本体积更小，性能更好
+    image: redis:7-alpine
+    
+    # container_name: 容器名称
+    container_name: video-redis
+    
+    # restart: 重启策略
+    restart: unless-stopped
+    
+    # ports: 端口映射
+    ports:
+      - "6379:6379"
+    
+    # volumes: 数据卷挂载
+    volumes:
+      # 数据持久化：将Redis数据存储在Docker卷中
+      - redis_data:/data
+    
+    # command: 启动命令
+    # redis-server: 启动Redis服务器
+    # --appendonly yes: 开启AOF持久化
+    # --maxmemory 256mb: 最大内存256MB
+    # --maxmemory-policy allkeys-lru: 内存满时使用LRU算法淘汰键
+    command:
+      - redis-server
+      - --appendonly yes
+      - --maxmemory 256mb
+      - --maxmemory-policy allkeys-lru
+    
+    # networks: 加入网络
+    networks:
+      - video-network
+    
+    # healthcheck: 健康检查
+    # 使用redis-cli ping命令检查Redis是否正常
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s    # 每10秒检查一次
+      timeout: 3s      # 超时时间3秒
+      retries: 3       # 连续失败3次才认为不健康
+      start_period: 10s  # 容器启动后10秒才开始检查
+
+# ==================== 网络配置 ====================
+# networks: 定义网络
+# 网络可以让容器之间通过服务名互相访问
+networks:
+  video-network:
+    driver: bridge      # 使用bridge驱动（桥接网络）
+    name: video-network # 网络名称
+
+# ==================== 数据卷配置 ====================
+# volumes: 定义数据卷
+# 数据卷用于持久化数据，即使容器删除，数据也不会丢失
+volumes:
+  mysql_data:
+    name: video-mysql-data  # MySQL数据卷
+  redis_data:
+    name: video-redis-data  # Redis数据卷

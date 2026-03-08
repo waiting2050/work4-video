@@ -1,0 +1,49 @@
+# .dockerignore - Docker构建时忽略的文件
+# 作用：告诉Docker在构建镜像时哪些文件不需要复制到镜像中
+# 这可以减小镜像体积，加快构建速度
+
+# Git相关文件
+.git
+.gitignore
+
+# Docker相关文件
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档文件
+*.md
+README.md
+docs/
+
+# 测试文件
+*_test.go
+testdata/
+
+# 临时文件
+*.log
+*.tmp
+*.swp
+*.swo
+
+# IDE配置文件
+.idea/
+.vscode/
+*.iml
+
+# 依赖目录（会在容器内重新下载）
+vendor/
+
+# 上传文件目录（会通过volume挂载）
+uploads/
+logs/
+
+# 编译产物
+server
+video
+*.exe
+*.exe~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
