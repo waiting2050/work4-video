@@ -133,7 +133,7 @@ func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	avatarURL := "uploads/avators/" + filename
+	avatarURL := "uploads/avatars/" + filename
 
 	user, err := h.userService.UpdateAvatar(userID, avatarURL)
 	if err != nil {

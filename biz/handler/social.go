@@ -79,10 +79,8 @@ func (h *SocialHandler) GetFollowList(ctx context.Context, c *app.RequestContext
 	}
 
 	utils.Success(c, map[string]interface{}{
-		"items":     users,
-		"total":     total,
-		"page_num":  pageNum,
-		"page_size": pageSize,
+		"items": users,
+		"total": total,
 	})
 }
 
@@ -110,17 +108,15 @@ func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestConte
 	}
 
 	utils.Success(c, map[string]interface{}{
-		"items":     users,
-		"total":     total,
-		"page_num":  pageNum,
-		"page_size": pageSize,
+		"items": users,
+		"total": total,
 	})
 }
 
 func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext) {
-	userID := c.Query("user_id")
+	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, -1, "unauthorized")
 		return
 	}
 
@@ -139,11 +135,9 @@ func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext
 		utils.Error(c, -1, err.Error())
 		return
 	}
-	
+
 	utils.Success(c, map[string]interface{}{
-		"items":     users,
-		"total":     total,
-		"page_num":  pageNum,
-		"page_size": pageSize,
+		"items": users,
+		"total": total,
 	})
 }

@@ -38,14 +38,14 @@ func customizedRegister(r *server.Hertz) {
         userGroup.POST("/register", userHandler.Register)
         userGroup.POST("/login", userHandler.Login)
         userGroup.GET("/info", userHandler.GetUserInfo)
-        userGroup.POST("/avatar", authMiddleware, userHandler.UploadAvatar)
+        userGroup.PUT("/avatar/upload", authMiddleware, userHandler.UploadAvatar)
     }
 
 	// 视频模块
     videoGroup := r.Group("/video")
     {
         videoGroup.POST("/publish", authMiddleware, videoHandler.PublishVideo)
-        videoGroup.GET("/publish/list", videoHandler.GetPublishList)
+        videoGroup.GET("/list", videoHandler.GetPublishList)
         videoGroup.POST("/search", videoHandler.SearchVideo)
         videoGroup.GET("/popular", videoHandler.GetPopularVideos)
     }
@@ -61,15 +61,12 @@ func customizedRegister(r *server.Hertz) {
     {
         commentGroup.POST("/publish", authMiddleware, interactionHandler.PublishComment)
         commentGroup.GET("/list", interactionHandler.GetCommentList)
-        commentGroup.POST("/delete", authMiddleware, interactionHandler.DeleteComment)
+        commentGroup.DELETE("/delete", authMiddleware, interactionHandler.DeleteComment)
     }
 
 	// 社交模块
-    relationGroup := r.Group("/relation")
-    {
-        relationGroup.POST("/action", authMiddleware, socialHandler.FollowAction)
-        relationGroup.GET("/follow/list", socialHandler.GetFollowList)
-        relationGroup.GET("/follower/list", socialHandler.GetFollowerList)
-        relationGroup.GET("/friend/list", authMiddleware, socialHandler.GetFriendList)
-    }
+    r.POST("/relation/action", authMiddleware, socialHandler.FollowAction)
+    r.GET("/following/list", socialHandler.GetFollowList)
+    r.GET("/follower/list", socialHandler.GetFollowerList)
+    r.GET("/friends/list", authMiddleware, socialHandler.GetFriendList)
 }
