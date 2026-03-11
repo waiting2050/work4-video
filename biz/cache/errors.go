@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	ErrCacheMiss = errors.New("cache miss")
-	ErrRedisDown = errors.New("redis unvailable")
+	ErrRedisDown = errors.New("redis unavailable")
 	ErrRedisTimeout = errors.New("redis timeout")
 )
 

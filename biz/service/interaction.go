@@ -16,10 +16,22 @@ type InteractionService struct {
 	db *gorm.DB
 }
 
+// NewInteractionService 创建互动服务实例
+// 参数：
+//   - db: 数据库连接
+// 返回：
+//   - *InteractionService: 互动服务实例
 func NewInteractionService(db *gorm.DB) *InteractionService {
 	return &InteractionService{db: db}
 }
 
+// LikeAction 用户点赞/取消点赞操作
+// 参数：
+//   - userID: 用户ID
+//   - videoID: 视频ID
+//   - actionType: 操作类型，1=点赞，2=取消点赞
+// 返回：
+//   - error: 错误信息
 func (s *InteractionService) LikeAction(userID, videoID string, actionType int) error {
 	isLiked, err := cache.IsUserLikedVideo(userID, videoID)
 	if err != nil {
@@ -138,6 +150,15 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 	return errors.New("invalid action type")
 }
 
+// GetLikeList 获取用户点赞的视频列表
+// 参数：
+//   - userID: 用户ID
+//   - pageNum: 页码，从1开始
+//   - pageSize: 每页数量
+// 返回：
+//   - []model.Video: 视频列表
+//   - int64: 总数
+//   - error: 错误信息
 func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) ([]model.Video, int64, error) {
 	videoIDs, total, err := cache.GetUserLikeIDsFromZSet(userID, pageNum, pageSize)
 	if err != nil {
@@ -189,6 +210,14 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 	return videos, total, nil
 }
 
+// PublishComment 发布评论
+// 参数：
+//   - userID: 用户ID
+//   - videoID: 视频ID
+//   - content: 评论内容
+// 返回：
+//   - *model.Comment: 评论对象
+//   - error: 错误信息
 func (s *InteractionService) PublishComment(userID, videoID, content string) (*model.Comment, error) {
 	var video model.Video
 	if err := s.db.Where("id = ? AND deleted_at IS NULL", videoID).First(&video).Error; err != nil {
@@ -199,24 +228,42 @@ func (s *InteractionService) PublishComment(userID, videoID, content string) (*m
 	}
 
 	comment := model.Comment{
-		ID: uuid.New().String(),
-		VideoID: videoID,
-		UserID: userID,
-		Content: content,
+		ID:       uuid.New().String(),
+		VideoID:  videoID,
+		UserID:   userID,
+		Content:  content,
 		ParentID: "",
 	}
 
-	if err := s.db.Create(&comment).Error; err != nil {
-		return nil, fmt.Errorf("failed to create comment: %w", err)
-	}
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	if err := s.db.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
+	if err := tx.Create(&comment).Error; err != nil {
+        tx.Rollback()
+        return nil, fmt.Errorf("failed to create comment: %w", err)
+    }
+
+	if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("failed to update video comment count: %w", err)
 	}
-	
+
 	return &comment, nil
 }
 
+// GetCommentList 获取视频评论列表
+// 参数：
+//   - videoID: 视频ID
+//   - pageNum: 页码，从1开始
+//   - pageSize: 每页数量
+// 返回：
+//   - []model.Comment: 评论列表
+//   - int64: 总数
+//   - error: 错误信息
 func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize int) ([]model.Comment, int64, error) {
 	var comments []model.Comment
 	var total int64
@@ -238,6 +285,12 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 	return comments, total, nil
 }
 
+// DeleteComment 删除评论
+// 参数：
+//   - userID: 用户ID
+//   - commentID: 评论ID
+// 返回：
+//   - error: 错误信息
 func (s *InteractionService) DeleteComment(userID, commentID string) error {
 	var comment model.Comment
 	if err := s.db.Where("id = ? AND deleted_at IS NULL", commentID).First(&comment).Error; err != nil {

@@ -60,6 +60,35 @@ type Like struct {
 	DeletedAt *time.Time `gorm:"index" json:"deleted_at"`
 }
 
+// UploadTask 分片上传任务
+type UploadTask struct {
+	ID           string     `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	UserID       string     `gorm:"index;type:varchar(255)" json:"user_id"`
+	FileName     string     `gorm:"type:varchar(255)" json:"file_name"`
+	FileSize     int64      `gorm:"type:bigint" json:"file_size"`
+	ChunkSize    int        `gorm:"type:int" json:"chunk_size"`
+	TotalChunks  int        `gorm:"type:int" json:"total_chunks"`
+	UploadedChunks int      `gorm:"type:int;default:0" json:"uploaded_chunks"`
+	Status       string     `gorm:"type:varchar(50);default:'pending'" json:"status"` // pending, uploading, completed, failed, cancelled
+	FileURL      string     `gorm:"type:varchar(512)" json:"file_url"`
+	Title        string     `gorm:"type:varchar(255)" json:"title"`
+	Description  string     `gorm:"type:text" json:"description"`
+	CreatedAt    time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt    *time.Time `gorm:"index" json:"deleted_at"`
+}
+
+// UploadChunk 已上传的分片信息
+type UploadChunk struct {
+	ID         string     `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	TaskID     string     `gorm:"index;type:varchar(255)" json:"task_id"`
+	ChunkIndex int        `gorm:"type:int" json:"chunk_index"`
+	ChunkSize  int64      `gorm:"type:bigint" json:"chunk_size"`
+	Checksum   string     `gorm:"type:varchar(64)" json:"checksum"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	DeletedAt  *time.Time `gorm:"index" json:"deleted_at"`
+}
+
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&User{},
