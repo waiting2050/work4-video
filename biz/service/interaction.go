@@ -33,6 +33,15 @@ func NewInteractionService(db *gorm.DB) *InteractionService {
 // 返回：
 //   - error: 错误信息
 func (s *InteractionService) LikeAction(userID, videoID string, actionType int) error {
+	// 首先检查视频是否存在
+	var video model.Video
+	if err := s.db.Where("id = ? AND deleted_at IS NULL", videoID).First(&video).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("video not found")
+		}
+		return fmt.Errorf("failed to check video: %w", err)
+	}
+
 	isLiked, err := cache.IsUserLikedVideo(userID, videoID)
 	if err != nil {
 		if cache.IsRedisDown(err) {
@@ -47,19 +56,23 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			return errors.New("already liked this video")
 		}
 
-		var existingLike model.Like
-		err := s.db.Where("user_id = ? AND video_id = ? AND deleted_at IS NULL", userID, videoID).First(&existingLike).Error
-		if err == nil {
-			go cache.AddUserLikeStatus(userID, videoID)
-			return errors.New("already liked this video")
-		}
-
+		// 使用事务确保原子性操作
 		tx := s.db.Begin()
 		defer func() {
 			if r := recover(); r != nil {
 				tx.Rollback()
 			}
 		}()
+
+		// 在事务内再次检查是否已点赞（防止并发问题）
+		var existingLike model.Like
+		err := tx.Where("user_id = ? AND video_id = ? AND deleted_at IS NULL", userID, videoID).First(&existingLike).Error
+		if err == nil {
+			tx.Rollback()
+			// 数据库中已存在，异步更新缓存
+			go cache.AddUserLikeStatus(userID, videoID)
+			return errors.New("already liked this video")
+		}
 
 		like := model.Like{
 			ID:      uuid.New().String(),
@@ -81,6 +94,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
+		// 异步更新缓存
 		go func() {
 			if err := cache.AddUserLikeStatus(userID, videoID); err != nil {
 				if cache.IsRedisDown(err) {
@@ -96,14 +110,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 
 		return nil
 	} else if actionType == 2 {
-		if !isLiked {
-			var existingLike model.Like
-			err := s.db.Where("user_id = ? AND video_id = ? AND deleted_at IS NULL", userID, videoID).First(&existingLike).Error
-			if err != nil {
-				return errors.New("like not found")
-			}
-		}
-
+		// 使用事务确保原子性操作
 		tx := s.db.Begin()
 		defer func() {
 			if r := recover(); r != nil {
@@ -131,6 +138,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
+		// 异步更新缓存
 		go func() {
 			if err := cache.RemoveUserLikeStatus(userID, videoID); err != nil {
 				if cache.IsRedisDown(err) {
@@ -243,13 +251,17 @@ func (s *InteractionService) PublishComment(userID, videoID, content string) (*m
 	}()
 
 	if err := tx.Create(&comment).Error; err != nil {
-        tx.Rollback()
-        return nil, fmt.Errorf("failed to create comment: %w", err)
-    }
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create comment: %w", err)
+	}
 
 	if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to update video comment count: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &comment, nil
@@ -304,12 +316,26 @@ func (s *InteractionService) DeleteComment(userID, commentID string) error {
 		return errors.New("cannot delete other users' comments")
 	}
 
-	if err := s.db.Delete(&comment).Error; err != nil {
+	// 使用事务确保原子性
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Delete(&comment).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to delete comment: %w", err)
 	}
 
-	if err := s.db.Model(&model.Video{}).Where("id = ? AND comment_count > 0", comment.VideoID).UpdateColumn("comment_count", gorm.Expr("comment_count - 1")).Error; err != nil {
+	if err := tx.Model(&model.Video{}).Where("id = ? AND comment_count > 0", comment.VideoID).UpdateColumn("comment_count", gorm.Expr("comment_count - 1")).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to update video comment count: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

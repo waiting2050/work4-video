@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -10,6 +11,13 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 )
+
+func init() {
+	// 确保头像上传目录存在
+	if err := os.MkdirAll("uploads/avatars", 0755); err != nil {
+		// 在init中无法处理错误，但会在首次上传时处理
+	}
+}
 
 type UserHandler struct {
 	userService *service.UserService

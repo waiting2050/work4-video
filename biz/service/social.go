@@ -50,11 +50,19 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 	}
 
 	if actionType == 0 {
-		// 关注操作
+		// 关注操作 - 使用事务避免竞态条件
+		tx := s.db.Begin()
+		defer func() {
+			if r := recover(); r != nil {
+				tx.Rollback()
+			}
+		}()
+
 		var existingFollow model.Follow
-		err := s.db.Where("follower_id = ? AND followee_id = ? AND deleted_at IS NULL", userID, toUserID).First(&existingFollow).Error
+		err := tx.Where("follower_id = ? AND followee_id = ? AND deleted_at IS NULL", userID, toUserID).First(&existingFollow).Error
 
 		if err == nil {
+			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Already following user: %s -> %s", userID, toUserID)
 			return errors.New("already following this user")
 		}
@@ -65,9 +73,15 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 			FolloweeID: toUserID,
 		}
 
-		if err := s.db.Create(&follow).Error; err != nil {
+		if err := tx.Create(&follow).Error; err != nil {
+			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Failed to create follow: %v", err)
 			return fmt.Errorf("failed to create follow: %w", err)
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			log.Printf("[SocialService.FollowAction] Failed to commit transaction: %v", err)
+			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
 		log.Printf("[SocialService.FollowAction] Successfully followed user: %s -> %s", userID, toUserID)
@@ -203,6 +217,17 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 //   - int64: 总数
 //   - error: 错误信息
 func (s *SocialService) GetFriendList(userID string, pageNum, pageSize int) ([]model.User, int64, error) {
+	// 参数验证
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100 // 限制最大页大小
+	}
+
 	// 查询用户关注列表
 	var following []model.Follow
 	if err := s.db.Where("follower_id = ? AND deleted_at IS NULL", userID).Find(&following).Error; err != nil {
@@ -238,11 +263,14 @@ func (s *SocialService) GetFriendList(userID string, pageNum, pageSize int) ([]m
 	var users []model.User
 	if len(friendIDs) > 0 {
 		offset := (pageNum - 1) * pageSize
-		end := offset + pageSize
-		if end > len(friendIDs) {
-			end = len(friendIDs)
+		if offset < 0 {
+			offset = 0
 		}
 		if offset < len(friendIDs) {
+			end := offset + pageSize
+			if end > len(friendIDs) {
+				end = len(friendIDs)
+			}
 			if err := s.db.Where("id IN ? AND deleted_at IS NULL", friendIDs[offset:end]).Find(&users).Error; err != nil {
 				log.Printf("[SocialService.GetFriendList] Failed to get users: %v", err)
 				return nil, 0, fmt.Errorf("failed to get users: %w", err)

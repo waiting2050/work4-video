@@ -96,5 +96,7 @@ func autoMigrate(db *gorm.DB) error {
 		&Comment{},
 		&Follow{},
 		&Like{},
+		&UploadTask{},
+		&UploadChunk{},
 	)
 }

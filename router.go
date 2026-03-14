@@ -14,59 +14,80 @@ import (
 // customizeRegister registers customize routers.
 func customizedRegister(r *server.Hertz) {
 	// 初始化服务
-    db := model.DB
-    userService := service.NewUserService(db)
-    videoService := service.NewVideoService(db)
-    interactionService := service.NewInteractionService(db)
-    socialService := service.NewSocialService(db)
+	db := model.DB
+	userService := service.NewUserService(db)
+	videoService := service.NewVideoService(db)
+	interactionService := service.NewInteractionService(db)
+	socialService := service.NewSocialService(db)
+	uploadService := service.NewUploadService(db)
+	strategyService := service.NewUploadStrategyService(nil)
 
 	// 初始化处理器
-    userHandler := handler.NewUserHandler(userService)
-    videoHandler := handler.NewVideoHandler(videoService)
-    interactionHandler := handler.NewInteractionHandler(interactionService)
-    socialHandler := handler.NewSocialHandler(socialService)
+	userHandler := handler.NewUserHandler(userService)
+	videoHandler := handler.NewVideoHandler(videoService)
+	interactionHandler := handler.NewInteractionHandler(interactionService)
+	socialHandler := handler.NewSocialHandler(socialService)
+	uploadHandler := handler.NewUploadService(uploadService, videoService)
+	strategyHandler := handler.NewUploadStrategyHandler(strategyService)
 
 	// 认证中间件
-    authMiddleware := auth.AuthMiddleware()
+	authMiddleware := auth.AuthMiddleware()
 
 	// 健康检查
-    r.GET("/ping", handler.Ping)
+	r.GET("/ping", handler.Ping)
 
 	// 用户模块
-    userGroup := r.Group("/user")
-    {
-        userGroup.POST("/register", userHandler.Register)
-        userGroup.POST("/login", userHandler.Login)
-        userGroup.GET("/info", userHandler.GetUserInfo)
-        userGroup.PUT("/avatar/upload", authMiddleware, userHandler.UploadAvatar)
-    }
+	userGroup := r.Group("/user")
+	{
+		userGroup.POST("/register", userHandler.Register)
+		userGroup.POST("/login", userHandler.Login)
+		userGroup.GET("/info", userHandler.GetUserInfo)
+		userGroup.PUT("/avatar/upload", authMiddleware, userHandler.UploadAvatar)
+	}
 
 	// 视频模块
-    videoGroup := r.Group("/video")
-    {
-        videoGroup.POST("/publish", authMiddleware, videoHandler.PublishVideo)
-        videoGroup.GET("/list", videoHandler.GetPublishList)
-        videoGroup.POST("/search", videoHandler.SearchVideo)
-        videoGroup.GET("/popular", videoHandler.GetPopularVideos)
-    }
+	videoGroup := r.Group("/video")
+	{
+		videoGroup.POST("/publish", authMiddleware, videoHandler.PublishVideo)
+		videoGroup.GET("/list", videoHandler.GetPublishList)
+		videoGroup.POST("/search", videoHandler.SearchVideo)
+		videoGroup.GET("/popular", videoHandler.GetPopularVideos)
+	}
+
+	// 上传策略模块（公开，用于前端决策）
+	strategyGroup := r.Group("/upload/strategy")
+	{
+		strategyGroup.GET("/decide", strategyHandler.GetUploadStrategy)
+		strategyGroup.GET("/recommendation", strategyHandler.GetUploadRecommendation)
+	}
 
 	// 互动模块
-    likeGroup := r.Group("/like")
-    {
-        likeGroup.POST("/action", authMiddleware, interactionHandler.LikeAction)
-        likeGroup.GET("/list", interactionHandler.GetLikeList)
-    }
+	likeGroup := r.Group("/like")
+	{
+		likeGroup.POST("/action", authMiddleware, interactionHandler.LikeAction)
+		likeGroup.GET("/list", interactionHandler.GetLikeList)
+	}
 
 	commentGroup := r.Group("/comment")
-    {
-        commentGroup.POST("/publish", authMiddleware, interactionHandler.PublishComment)
-        commentGroup.GET("/list", interactionHandler.GetCommentList)
-        commentGroup.DELETE("/delete", authMiddleware, interactionHandler.DeleteComment)
-    }
+	{
+		commentGroup.POST("/publish", authMiddleware, interactionHandler.PublishComment)
+		commentGroup.GET("/list", interactionHandler.GetCommentList)
+		commentGroup.DELETE("/delete", authMiddleware, interactionHandler.DeleteComment)
+	}
 
 	// 社交模块
-    r.POST("/relation/action", authMiddleware, socialHandler.FollowAction)
-    r.GET("/following/list", socialHandler.GetFollowList)
-    r.GET("/follower/list", socialHandler.GetFollowerList)
-    r.GET("/friends/list", authMiddleware, socialHandler.GetFriendList)
+	r.POST("/relation/action", authMiddleware, socialHandler.FollowAction)
+	r.GET("/following/list", socialHandler.GetFollowList)
+	r.GET("/follower/list", socialHandler.GetFollowerList)
+	r.GET("/friends/list", authMiddleware, socialHandler.GetFriendList)
+
+	// 分片上传模块
+	uploadGroup := r.Group("/upload")
+	{
+		uploadGroup.POST("/init", authMiddleware, uploadHandler.InitUpload)
+		uploadGroup.POST("/chunk", authMiddleware, uploadHandler.UploadChunk)
+		uploadGroup.GET("/status", authMiddleware, uploadHandler.GetUploadStatus)
+		uploadGroup.POST("/merge", authMiddleware, uploadHandler.MergeChunks)
+		uploadGroup.POST("/cancel", authMiddleware, uploadHandler.CancelUpload)
+	}
 }

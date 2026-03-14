@@ -1,6 +1,6 @@
 # Video - TikTok 风格短视频平台
 
-一个基于 Hertz 框架构建的类 TikTok 短视频平台后端，具有双 Token 认证、Redis 缓存和完善的社交互动功能。
+一个基于 Hertz 框架构建的类 TikTok 短视频平台后端，具有双 Token 认证、Redis 缓存、分片上传和完善的社交互动功能。
 
 ## 目录
 
@@ -14,6 +14,8 @@
 - [项目结构](#项目结构)
 - [配置说明](#配置说明)
 - [Docker 部署](#docker-部署)
+- [常见问题](#常见问题)
+- [已知问题](#已知问题)
 - [贡献指南](#贡献指南)
 - [许可证](#许可证)
 
@@ -24,8 +26,10 @@ Video 是一个受 TikTok 启发的短视频社交平台后端，旨在提供完
 ### 核心亮点
 
 - **双 Token 认证**：基于 JWT 的安全认证机制，包含访问令牌和刷新令牌
-- **Redis 缓存**：使用 Redis 缓存优化热门视频排行榜
-- **RESTful API**：17 个完善的 API 接口，遵循 OpenAPI 3.0.1 规范
+- **Redis 缓存**：使用 Redis 缓存优化热门视频排行榜和点赞状态
+- **分片上传**：支持大文件分片上传，断点续传，适应弱网环境
+- **智能上传策略**：根据文件大小和网络环境自动选择最优上传方式
+- **RESTful API**：20+ 个完善的 API 接口，遵循 OpenAPI 3.0.1 规范
 - **Docker 就绪**：完整的容器化支持，便于部署
 - **清晰架构**：模块化设计，职责分离明确
 
@@ -38,7 +42,9 @@ Video 是一个受 TikTok 启发的短视频社交平台后端，旨在提供完
 - 头像上传功能
 
 ### 视频模块
-- 视频上传与发布
+- **普通上传**：适用于小文件（< 100MB）
+- **分片上传**：适用于大文件（≥ 100MB），支持断点续传
+- **上传策略决策**：根据文件大小和网络环境自动推荐上传方式
 - 用户视频列表（支持分页）
 - 视频搜索（支持关键词、用户名、日期范围过滤）
 - 热门视频排行榜（Redis 缓存）
@@ -56,13 +62,19 @@ Video 是一个受 TikTok 启发的短视频社交平台后端，旨在提供完
 - 查看粉丝列表
 - 查看互关好友列表
 
+### 上传策略模块
+- 智能上传方式决策
+- 网络环境自适应分片大小
+- 上传进度查询
+- 断点续传支持
+
 ## 技术栈
 
 | 类别 | 技术 |
 |------|------|
 | **框架** | [Hertz](https://github.com/cloudwego/hertz) - CloudWeGo HTTP 框架 |
 | **数据库** | MySQL + GORM ORM |
-| **缓存** | Redis（热门排行榜缓存） |
+| **缓存** | Redis（热门排行榜、点赞状态缓存） |
 | **认证** | JWT (golang-jwt/jwt) |
 | **密码加密** | bcrypt |
 | **ID 生成** | UUID (google/uuid) |
@@ -94,13 +106,15 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# JWT 配置
+# JWT 配置（生产环境必须修改）
 JWT_ACCESS_SECRET=your-access-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret-key
 
 # 服务器配置
 SERVER_PORT=8888
 ```
+
+**⚠️ 安全提示**：生产环境必须修改默认的 JWT 密钥，不要使用默认值！
 
 ## 安装步骤
 
@@ -174,7 +188,47 @@ curl -X POST http://localhost:8888/user/login \
 - `Access-Token`：短期令牌（2 小时）
 - `Refresh-Token`：长期令牌（7 天）
 
-### 上传视频（需要认证）
+### 获取上传策略建议
+
+```bash
+curl -X GET "http://localhost:8888/upload/strategy/decide?file_name=video.mp4&file_size=52428800&network_type=wifi"
+```
+
+### 分片上传流程
+
+1. **初始化上传任务**
+   ```bash
+   curl -X POST http://localhost:8888/upload/init \
+     -H "Access-Token: your-access-token" \
+     -F "file_name=video.mp4" \
+     -F "file_size=104857600" \
+     -F "title=我的视频" \
+     -F "description=视频描述"
+   ```
+
+2. **上传分片**（可并发）
+   ```bash
+   curl -X POST http://localhost:8888/upload/chunk \
+     -H "Access-Token: your-access-token" \
+     -F "task_id=xxx" \
+     -F "chunk_index=0" \
+     -F "chunk=@chunk0.bin"
+   ```
+
+3. **查询上传状态**
+   ```bash
+   curl -X GET "http://localhost:8888/upload/status?task_id=xxx" \
+     -H "Access-Token: your-access-token"
+   ```
+
+4. **合并分片**
+   ```bash
+   curl -X POST http://localhost:8888/upload/merge \
+     -H "Access-Token: your-access-token" \
+     -F "task_id=xxx"
+   ```
+
+### 普通视频上传
 
 ```bash
 curl -X POST http://localhost:8888/video/publish \
@@ -187,6 +241,7 @@ curl -X POST http://localhost:8888/video/publish \
 ## API 接口文档
 
 ### 基础 URL
+
 ```
 http://localhost:8888
 ```
@@ -209,10 +264,12 @@ http://localhost:8888
 
 ### 状态码
 
-| 状态码 | 含义 |
-|--------|------|
-| 10000 | 成功 |
-| -1 | 失败 |
+| 状态码 | 含义 | 说明 |
+|--------|------|------|
+| 10000 | 成功 | 请求处理成功 |
+| -1 | 通用错误 | 请求处理失败，具体错误信息见 `msg` 字段 |
+
+**注意**：当前版本仅使用 `10000` 和 `-1` 两种状态码，所有错误类型的详细信息通过 `msg` 字段返回。
 
 ### API 端点
 
@@ -229,10 +286,27 @@ http://localhost:8888
 
 | 方法 | 端点 | 描述 | 需要认证 |
 |------|------|------|----------|
-| POST | `/video/publish` | 上传视频 | 是 |
+| POST | `/video/publish` | 上传视频（普通上传） | 是 |
 | GET | `/video/list?user_id={id}&page_num={n}&page_size={n}` | 获取用户视频列表 | 否 |
 | POST | `/video/search` | 搜索视频 | 否 |
 | GET | `/video/popular?page_num={n}&page_size={n}` | 获取热门视频 | 否 |
+
+#### 上传策略模块
+
+| 方法 | 端点 | 描述 | 需要认证 |
+|------|------|------|----------|
+| GET | `/upload/strategy/decide` | 获取上传策略决策 | 否 |
+| GET | `/upload/strategy/recommendation` | 获取上传建议 | 否 |
+
+#### 分片上传模块
+
+| 方法 | 端点 | 描述 | 需要认证 |
+|------|------|------|----------|
+| POST | `/upload/init` | 初始化上传任务 | 是 |
+| POST | `/upload/chunk` | 上传分片 | 是 |
+| GET | `/upload/status` | 查询上传状态 | 是 |
+| POST | `/upload/merge` | 合并分片 | 是 |
+| POST | `/upload/cancel` | 取消上传 | 是 |
 
 #### 互动模块
 
@@ -277,20 +351,31 @@ page_num: int
 page_size: int
 ```
 
+#### 上传策略决策
+```
+file_name: string（必填）
+file_size: int64（必填，字节）
+network_type: string（可选：wifi/4g/5g/unknown）
+user_preference: string（可选：auto/normal/chunked）
+```
+
 ## 项目结构
 
 ```
 video/
 ├── biz/
 │   ├── auth/                 # JWT 认证
-│   │   └── jwt.go
+│   │   ├── jwt.go
+│   │   └── middleware.go
 │   ├── cache/                # Redis 缓存
 │   │   └── redis.go
 │   ├── handler/              # HTTP 处理器
 │   │   ├── user.go           # 用户接口
 │   │   ├── video.go          # 视频接口
 │   │   ├── interaction.go    # 互动接口
-│   │   └── social.go         # 社交接口
+│   │   ├── social.go         # 社交接口
+│   │   ├── upload.go         # 分片上传接口
+│   │   └── upload_strategy.go # 上传策略接口
 │   ├── model/                # 数据模型
 │   │   ├── models.go         # GORM 模型
 │   │   ├── db.go             # 数据库连接
@@ -299,12 +384,15 @@ video/
 │   │   ├── user.go
 │   │   ├── video.go
 │   │   ├── interaction.go
-│   │   └── social.go
+│   │   ├── social.go
+│   │   ├── upload.go         # 分片上传服务
+│   │   └── upload_strategy.go # 上传策略服务
 │   └── utils/                # 工具函数
 │       └── response.go       # 响应辅助函数
 ├── uploads/                  # 文件上传目录
 │   ├── avatars/              # 用户头像
-│   └── videos/               # 视频文件
+│   ├── videos/               # 视频文件
+│   └── chunks/               # 分片临时存储
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .dockerignore
@@ -326,16 +414,31 @@ video/
 - `comments` - 视频评论
 - `follows` - 用户关系
 - `likes` - 视频点赞
+- `upload_tasks` - 上传任务（分片上传）
+- `upload_chunks` - 上传分片记录
 
 ### Redis 配置
 
-Redis 用于缓存热门视频排行榜，TTL 为 5 分钟。
+Redis 用于缓存：
+- 热门视频排行榜（TTL 5 分钟）
+- 用户点赞状态（TTL 24 小时）
+- 用户点赞列表（TTL 24 小时）
+- 视频点赞计数（TTL 30 分钟）
 
 ### JWT 配置
 
-- **Access-Token**：有效期 2 小时
-- **Refresh-Token**：有效期 7 天
+- **Access-Token**：有效期 2 小时，用于 API 认证
+- **Refresh-Token**：有效期 7 天，用于刷新 Access-Token
 - **算法**：HMAC-SHA256
+- **Token 类型**：包含 `type` 字段区分 access/refresh
+
+### 上传配置
+
+- **默认分片大小**：5MB
+- **慢速网络分片大小**：1MB
+- **最大分片大小**：50MB
+- **小文件阈值**：100MB（小于此值使用普通上传）
+- **大文件阈值**：100MB（大于等于此值使用分片上传）
 
 ## Docker 部署
 
@@ -371,6 +474,64 @@ Redis 用于缓存热门视频排行榜，TTL 为 5 分钟。
    curl http://localhost:8888/ping
    ```
 
+## 常见问题
+
+### Q: 如何选择上传方式？
+
+A: 系统提供智能上传策略决策：
+- 文件 < 100MB + WiFi/5G → 普通上传
+- 文件 ≥ 100MB → 分片上传（强制）
+- 弱网环境 → 分片上传（小分片）
+
+也可以调用 `/upload/strategy/decide` 接口获取建议。
+
+### Q: 分片上传失败如何重试？
+
+A: 分片上传支持幂等性，同一分片可以重复上传。建议实现：
+1. 单分片失败立即重试（最多3次）
+2. 使用 `/upload/status` 查询已上传分片
+3. 只上传缺失的分片
+
+### Q: Token 过期如何处理？
+
+A: 使用 Refresh-Token 获取新的 Access-Token：
+```bash
+curl -X POST http://localhost:8888/user/refresh \
+  -H "Refresh-Token: your-refresh-token"
+```
+
+### Q: 支持哪些视频格式？
+
+A: 支持 MP4、MOV、AVI、MKV 格式。建议上传 MP4 格式以获得最佳兼容性。
+
+### Q: 如何清理未完成的上传任务？
+
+A: 系统会自动清理超过 24 小时的未完成上传任务。也可以手动调用：
+```bash
+curl -X POST http://localhost:8888/upload/cancel \
+  -H "Access-Token: your-access-token" \
+  -F "task_id=xxx"
+```
+
+## 已知问题
+
+### 高优先级
+
+1. **并发计数器竞态条件**：分片上传的 `uploaded_chunks` 计数器在高并发下可能不准确
+2. **缓存与数据库不一致**：Redis 缓存更新是异步的，存在短暂不一致窗口
+3. **JWT 密钥硬编码**：默认配置包含硬编码密钥，生产环境必须修改
+
+### 中优先级
+
+1. **N+1 查询问题**：社交模块的列表查询存在性能优化空间
+2. **缺少请求频率限制**：登录、注册等接口需要添加限流保护
+3. **密码复杂度未验证**：当前允许弱密码注册
+
+### 低优先级
+
+1. **日志格式不统一**：部分日志格式不一致
+2. **错误信息中英文混杂**：需要统一语言
+
 ## 贡献指南
 
 ### 开发规范
@@ -386,6 +547,12 @@ Redis 用于缓存热门视频排行榜，TTL 为 5 分钟。
 - 为复杂逻辑添加注释
 - 正确处理错误
 - 遵循 RESTful API 规范
+
+### 提交规范
+
+- 使用清晰的提交信息
+- 一个 PR 只解决一个问题
+- 添加必要的测试用例
 
 ## 许可证
 

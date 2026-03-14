@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/cloudwego/hertz/pkg/app"
+import (
+	"strconv"
+
+	"github.com/cloudwego/hertz/pkg/app"
+)
 
 type BaseResponse struct {
 	Code int    `json:"code"`
@@ -26,7 +30,12 @@ func Error(c *app.RequestContext, code int, msg string) {
 	c.JSON(200, SuccessResponse{
 		Base: BaseResponse{
 			Code: code,
-			Msg: msg,
+			Msg:  msg,
 		},
 	})
+}
+
+// ParseInt64 解析字符串为 int64
+func ParseInt64(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
 }

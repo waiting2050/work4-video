@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"video/biz/model"
@@ -151,7 +152,9 @@ func IncrVideoLikeCount(videoID string) (int64, error) {
 		return 0, fmt.Errorf("redis incr error: %w", err)
 	}
 
-	RedisClient.Expire(ctx, key, LikeCountCacheTTL)
+	if err := RedisClient.Expire(ctx, key, LikeCountCacheTTL).Err(); err != nil {
+		log.Printf("[Redis] Failed to set expire for key %s: %v", key, err)
+	}
 
 	return result, nil
 }
@@ -169,7 +172,9 @@ func DecrVideoLikeCount(videoID string) (int64, error) {
 		return 0, fmt.Errorf("redis decr error: %w", err)
 	}
 
-	RedisClient.Expire(ctx, key, LikeCountCacheTTL)
+	if err := RedisClient.Expire(ctx, key, LikeCountCacheTTL).Err(); err != nil {
+		log.Printf("[Redis] Failed to set expire for key %s: %v", key, err)
+	}
 
 	return result, nil
 }

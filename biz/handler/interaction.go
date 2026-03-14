@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"strconv"
-	"video/biz/model"
 	"video/biz/service"
 	"video/biz/utils"
 
@@ -73,7 +72,7 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 		pageSize = 10
 	}
 
-	videos, _, err := h.interactionService.GetLikeList(userID, pageNum, pageSize)
+	videos, total, err := h.interactionService.GetLikeList(userID, pageNum, pageSize)
 	if err != nil {
 		utils.Error(c, -1, "failed to get like list")
 		return
@@ -81,6 +80,7 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 
 	utils.Success(c, map[string]interface{}{
 		"items": videos,
+		"total": total,
 	})
 }
 
@@ -119,10 +119,9 @@ func (h *InteractionHandler) PublishComment(ctx context.Context, c *app.RequestC
 
 func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestContext) {
 	videoID := c.Query("video_id")
-	commentID := c.Query("comment_id")
 
-	if videoID == "" && commentID == "" {
-		utils.Error(c, -1, "video_id or comment_id is required")
+	if videoID == "" {
+		utils.Error(c, -1, "video_id is required")
 		return
 	}
 
@@ -136,23 +135,7 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 		pageSize = 10
 	}
 
-	var comments []interface{}
-	var svcErr error
-
-	if videoID != "" {
-		var result []model.Comment
-		result, _, svcErr = h.interactionService.GetCommentList(videoID, pageNum, pageSize)
-		for _, c := range result {
-			comments = append(comments, c)
-		}
-	} else {
-		var result []model.Comment
-		result, _, svcErr = h.interactionService.GetCommentList(commentID, pageNum, pageSize)
-		for _, c := range result {
-			comments = append(comments, c)
-		}
-	}
-
+	comments, total, svcErr := h.interactionService.GetCommentList(videoID, pageNum, pageSize)
 	if svcErr != nil {
 		utils.Error(c, -1, "failed to get comment list")
 		return
@@ -160,6 +143,7 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 
 	utils.Success(c, map[string]interface{}{
 		"items": comments,
+		"total": total,
 	})
 }
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -11,6 +12,16 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 )
+
+func init() {
+	// 确保视频上传目录存在
+	if err := os.MkdirAll("uploads/videos", 0755); err != nil {
+		// 在init中无法处理错误，但会在首次上传时处理
+	}
+	if err := os.MkdirAll("uploads/videos/covers", 0755); err != nil {
+		// 在init中无法处理错误，但会在首次上传时处理
+	}
+}
 
 type VideoHandler struct {
 	videoService *service.VideoService

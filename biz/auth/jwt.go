@@ -21,6 +21,7 @@ func InitJWT(cfg *model.Config) {
 func GenerateAccessToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
+		"type":    "access",
 		"exp":     time.Now().Add(2 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
 	}
@@ -31,6 +32,7 @@ func GenerateAccessToken(userID string) (string, error) {
 func GenerateRefreshToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
+		"type":    "refresh",
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
 	}
