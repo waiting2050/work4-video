@@ -27,9 +27,14 @@ func main() {
 
 	auth.InitJWT(cfg)
 
+	// 配置文件上传大小限制为 100MB (104857600 bytes)
+	// Hertz 默认限制为 4MB，需要增加以支持大文件上传
+	maxBodySize := 100 * 1024 * 1024 // 100MB
+
 	h := server.Default(
-        server.WithHostPorts(":"+cfg.Server.Port),
-    )
+		server.WithHostPorts(":"+cfg.Server.Port),
+		server.WithMaxRequestBodySize(maxBodySize),
+	)
 
 	register(h)
 

@@ -12,12 +12,8 @@ services:
   # ==================== 应用服务 ====================
   # app: 我们的主应用服务
   app:
-    # build: 构建配置
-    # context: . 表示使用当前目录作为构建上下文
-    # dockerfile: Dockerfile 指定使用的Dockerfile文件名
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # image: 使用已编译的二进制文件
+    image: alpine:latest
     
     # container_name: 容器名称
     # 给容器起一个容易识别的名字
@@ -64,8 +60,13 @@ services:
     # 这样可以持久化数据，容器删除后数据不会丢失
     volumes:
       # 格式：主机路径:容器路径
+      - ./server:/app/server     # 已编译的程序
       - ./uploads:/app/uploads     # 上传文件目录
       - ./logs:/app/logs           # 日志目录（可选）
+    
+    # command: 启动命令
+    # 直接运行编译好的程序
+    command: ["/app/server"]
     
     # depends_on: 服务依赖
     # 表示app服务依赖mysql和redis服务

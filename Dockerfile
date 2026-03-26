@@ -9,7 +9,7 @@
 # 第二阶段：只保留可执行文件，丢弃编译工具
 # 这样可以大大减小最终镜像的体积
 
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # 设置工作目录
 # 作用：在容器内创建一个专门的目录来存放项目文件

@@ -1,0 +1,1043 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Video Platform API",
+    "description": "短视频平台 API - 完整接口文档",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8888",
+      "description": "本地开发环境"
+    }
+  ],
+  "paths": {
+    "/ping": {
+      "get": {
+        "tags": ["系统模块"],
+        "summary": "健康检查",
+        "operationId": "ping",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer", "example": 10000 },
+                        "msg": { "type": "string", "example": "success" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string", "example": "pong" },
+                        "status": { "type": "string", "example": "ok" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/register": {
+      "post": {
+        "tags": ["用户模块"],
+        "summary": "用户注册",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "description": "用户名" },
+                  "password": { "type": "string", "description": "密码" }
+                }
+              },
+              "example": {
+                "username": "testuser001",
+                "password": "Pass123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "username": { "type": "string" },
+                        "avatar_url": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/login": {
+      "post": {
+        "tags": ["用户模块"],
+        "summary": "用户登录",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" },
+                  "code": { "type": "string", "description": "MFA验证码(可选)" }
+                }
+              },
+              "example": {
+                "username": "testuser001",
+                "password": "Pass123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "headers": {
+              "Access-Token": {
+                "description": "访问令牌",
+                "schema": { "type": "string" }
+              },
+              "Refresh-Token": {
+                "description": "刷新令牌",
+                "schema": { "type": "string" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer", "example": 10000 },
+                        "msg": { "type": "string", "example": "success" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "username": { "type": "string" },
+                        "avatar_url": { "type": "string" },
+                        "created_at": { "type": "string" },
+                        "updated_at": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-apifox": {
+          "afterScript": "const response = pm.response.json();\nif (response.base && response.base.code === 10000 && response.data) {\n    pm.environment.set('userId', response.data.id);\n    pm.environment.set('token', pm.response.headers.get('Access-Token'));\n    console.log('userId and token saved to environment');\n}"
+        }
+      }
+    },
+    "/user/info": {
+      "get": {
+        "tags": ["用户模块"],
+        "summary": "获取用户信息",
+        "operationId": "getUserInfo",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "用户ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "username": { "type": "string" },
+                        "avatar_url": { "type": "string" },
+                        "created_at": { "type": "string" },
+                        "updated_at": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-apifox": {
+          "requestParameters": [
+            {
+              "key": "user_id",
+              "value": "{{userId}}"
+            }
+          ]
+        }
+      }
+    },
+    "/user/avatar": {
+      "post": {
+        "tags": ["用户模块"],
+        "summary": "上传头像",
+        "operationId": "uploadAvatar",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "头像文件"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "username": { "type": "string" },
+                        "avatar_url": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/publish": {
+      "post": {
+        "tags": ["视频模块"],
+        "summary": "发布视频",
+        "operationId": "publishVideo",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "视频文件"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "视频标题"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "视频描述"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "video_id": { "type": "string" },
+                        "video_url": { "type": "string" },
+                        "cover_url": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/publish/list": {
+      "get": {
+        "tags": ["视频模块"],
+        "summary": "获取用户发布视频列表",
+        "operationId": "getPublishList",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "用户ID"
+          },
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 },
+            "description": "页码"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 },
+            "description": "每页数量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-apifox": {
+          "requestParameters": [
+            {
+              "key": "user_id",
+              "value": "{{userId}}"
+            }
+          ]
+        }
+      }
+    },
+    "/video/search": {
+      "post": {
+        "tags": ["视频模块"],
+        "summary": "搜索视频",
+        "operationId": "searchVideo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keywords": { "type": "string", "description": "关键词" },
+                  "username": { "type": "string", "description": "用户名" },
+                  "from_date": { "type": "integer", "description": "开始时间戳" },
+                  "to_date": { "type": "integer", "description": "结束时间戳" },
+                  "page_num": { "type": "integer", "default": 1 },
+                  "page_size": { "type": "integer", "default": 10 }
+                }
+              },
+              "example": {
+                "keywords": "测试",
+                "page_num": 1,
+                "page_size": 10
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/popular": {
+      "get": {
+        "tags": ["视频模块"],
+        "summary": "获取热门视频",
+        "operationId": "getPopularVideos",
+        "parameters": [
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 },
+            "description": "页码"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 },
+            "description": "每页数量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/like/action": {
+      "post": {
+        "tags": ["互动模块"],
+        "summary": "点赞/取消点赞",
+        "operationId": "likeAction",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["video_id", "action_type"],
+                "properties": {
+                  "video_id": { "type": "string", "description": "视频ID" },
+                  "action_type": { "type": "integer", "description": "1=点赞, 2=取消点赞" }
+                }
+              },
+              "example": {
+                "video_id": "{{videoId}}",
+                "action_type": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/like/list": {
+      "get": {
+        "tags": ["互动模块"],
+        "summary": "获取点赞列表",
+        "operationId": "getLikeList",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "用户ID"
+          },
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-apifox": {
+          "requestParameters": [
+            {
+              "key": "user_id",
+              "value": "{{userId}}"
+            }
+          ]
+        }
+      }
+    },
+    "/comment/publish": {
+      "post": {
+        "tags": ["互动模块"],
+        "summary": "发布评论",
+        "operationId": "publishComment",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["video_id", "content"],
+                "properties": {
+                  "video_id": { "type": "string", "description": "视频ID" },
+                  "content": { "type": "string", "description": "评论内容" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "comment_id": { "type": "string" },
+                        "content": { "type": "string" },
+                        "created_at": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comment/list": {
+      "get": {
+        "tags": ["互动模块"],
+        "summary": "获取评论列表",
+        "operationId": "getCommentList",
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "视频ID"
+          },
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comment/delete": {
+      "post": {
+        "tags": ["互动模块"],
+        "summary": "删除评论",
+        "operationId": "deleteComment",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["comment_id"],
+                "properties": {
+                  "comment_id": { "type": "string", "description": "评论ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/relation/action": {
+      "post": {
+        "tags": ["社交模块"],
+        "summary": "关注/取消关注",
+        "operationId": "followAction",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["to_user_id", "action_type"],
+                "properties": {
+                  "to_user_id": { "type": "string", "description": "目标用户ID" },
+                  "action_type": { "type": "integer", "description": "0=关注, 1=取消关注" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/relation/follow/list": {
+      "get": {
+        "tags": ["社交模块"],
+        "summary": "获取关注列表",
+        "operationId": "getFollowList",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "用户ID"
+          },
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-apifox": {
+          "requestParameters": [
+            {
+              "key": "user_id",
+              "value": "{{userId}}"
+            }
+          ]
+        }
+      }
+    },
+    "/relation/follower/list": {
+      "get": {
+        "tags": ["社交模块"],
+        "summary": "获取粉丝列表",
+        "operationId": "getFollowerList",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "用户ID"
+          },
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/relation/friend/list": {
+      "get": {
+        "tags": ["社交模块"],
+        "summary": "获取好友列表",
+        "operationId": "getFriendList",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page_num",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer" },
+                        "msg": { "type": "string" }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array" },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "在请求头中添加: Authorization: Bearer {{token}}"
+      }
+    }
+  },
+  "x-apifox": {
+    "environments": [
+      {
+        "name": "本地环境",
+        "baseUrl": "http://localhost:8888",
+        "variables": [
+          {
+            "name": "userId",
+            "value": "",
+            "description": "当前用户ID"
+          },
+          {
+            "name": "token",
+            "value": "",
+            "description": "访问令牌"
+          },
+          {
+            "name": "videoId",
+            "value": "",
+            "description": "视频ID"
+          },
+          {
+            "name": "commentId",
+            "value": "",
+            "description": "评论ID"
+          }
+        ]
+      }
+    ]
+  }
+}

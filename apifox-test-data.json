@@ -1,0 +1,2871 @@
+{
+  "collection": {
+    "name": "Video Platform API - Comprehensive Test Collection",
+    "description": "短视频平台 API 完整测试集合 - 涵盖正常、边界和错误场景",
+    "variables": [
+      {
+        "name": "baseUrl",
+        "value": "http://localhost:8888",
+        "description": "API 基础地址"
+      },
+      {
+        "name": "userId1",
+        "value": "",
+        "description": "测试用户1 ID"
+      },
+      {
+        "name": "userId2",
+        "value": "",
+        "description": "测试用户2 ID"
+      },
+      {
+        "name": "username1",
+        "value": "testuser001",
+        "description": "测试用户1 用户名"
+      },
+      {
+        "name": "username2",
+        "value": "testuser002",
+        "description": "测试用户2 用户名"
+      },
+      {
+        "name": "accessToken1",
+        "value": "",
+        "description": "测试用户1 Access Token"
+      },
+      {
+        "name": "accessToken2",
+        "value": "",
+        "description": "测试用户2 Access Token"
+      },
+      {
+        "name": "refreshToken1",
+        "value": "",
+        "description": "测试用户1 Refresh Token"
+      },
+      {
+        "name": "videoId1",
+        "value": "",
+        "description": "测试视频1 ID"
+      },
+      {
+        "name": "videoId2",
+        "value": "",
+        "description": "测试视频2 ID"
+      },
+      {
+        "name": "commentId1",
+        "value": "",
+        "description": "测试评论1 ID"
+      },
+      {
+        "name": "taskId",
+        "value": "",
+        "description": "分片上传任务 ID"
+      }
+    ],
+    "folders": [
+      {
+        "name": "【系统模块】",
+        "description": "系统健康检查相关接口",
+        "items": [
+          {
+            "name": "01-健康检查-成功",
+            "method": "GET",
+            "path": "/ping",
+            "parameters": [],
+            "headers": [],
+            "body": null,
+            "expectedResponse": {
+              "status": 200,
+              "body": {
+                "base": {
+                  "code": 10000,
+                  "msg": "success"
+                },
+                "data": {
+                  "status": "ok",
+                  "message": "pong"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "【用户模块】",
+        "description": "用户注册、登录、信息管理相关接口",
+        "folders": [
+          {
+            "name": "【注册】",
+            "items": [
+              {
+                "name": "02-注册用户1-成功",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "password": "Pass123456"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extract",
+                    "variable": "userId1",
+                    "jsonPath": "$.data.id"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser001",
+                      "avatar_url": ""
+                    }
+                  }
+                }
+              },
+              {
+                "name": "03-注册用户2-成功",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser002",
+                    "password": "Pass123456"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extract",
+                    "variable": "userId2",
+                    "jsonPath": "$.data.id"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser002",
+                      "avatar_url": ""
+                    }
+                  }
+                }
+              },
+              {
+                "name": "04-注册-失败-用户名已存在",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "username already exists"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "05-注册-失败-缺少用户名",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid request parameters"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "06-注册-失败-缺少密码",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser003"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid request parameters"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "07-注册-边界-用户名过短",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "ab",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "username too short"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "08-注册-边界-用户名过长",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "this_is_a_very_long_username_that_exceeds_the_maximum_allowed_length",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "username too long"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "09-注册-边界-密码过短",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser004",
+                    "password": "123"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "password too short"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "10-注册-边界-特殊字符用户名",
+                "method": "POST",
+                "path": "/user/register",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "test@user#001",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid username format"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【登录】",
+            "items": [
+              {
+                "name": "11-登录用户1-成功",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "password": "Pass123456"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extractHeader",
+                    "variable": "accessToken1",
+                    "headerName": "Access-Token"
+                  },
+                  {
+                    "type": "extractHeader",
+                    "variable": "refreshToken1",
+                    "headerName": "Refresh-Token"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "headers": [
+                    {
+                      "key": "Access-Token",
+                      "description": "JWT访问令牌(2小时有效)"
+                    },
+                    {
+                      "key": "Refresh-Token",
+                      "description": "JWT刷新令牌(7天有效)"
+                    }
+                  ],
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser001",
+                      "avatar_url": "",
+                      "created_at": "2024-01-01T12:00:00Z",
+                      "updated_at": "2024-01-01T12:00:00Z"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "12-登录用户2-成功",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser002",
+                    "password": "Pass123456"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extractHeader",
+                    "variable": "accessToken2",
+                    "headerName": "Access-Token"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "headers": [
+                    {
+                      "key": "Access-Token",
+                      "description": "JWT访问令牌"
+                    }
+                  ],
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser002",
+                      "avatar_url": ""
+                    }
+                  }
+                }
+              },
+              {
+                "name": "13-登录-失败-用户不存在",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "nonexistent_user",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user not found"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "14-登录-失败-密码错误",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "password": "WrongPassword123"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid password"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "15-登录-边界-空用户名",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "",
+                    "password": "Pass123456"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid request parameters"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "16-登录-边界-空密码",
+                "method": "POST",
+                "path": "/user/login",
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "password": ""
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid request parameters"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【用户信息】",
+            "items": [
+              {
+                "name": "17-获取用户信息-成功",
+                "method": "GET",
+                "path": "/user/info",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId1}}",
+                    "type": "string",
+                    "required": true
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser001",
+                      "avatar_url": "",
+                      "created_at": "2024-01-01T12:00:00Z",
+                      "updated_at": "2024-01-01T12:00:00Z"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "18-获取用户信息-失败-缺少user_id",
+                "method": "GET",
+                "path": "/user/info",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user_id is required"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "19-获取用户信息-失败-无效user_id",
+                "method": "GET",
+                "path": "/user/info",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "invalid-uuid",
+                    "type": "string",
+                    "required": true
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user not found"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【头像上传】",
+            "items": [
+              {
+                "name": "20-上传头像-成功",
+                "method": "PUT",
+                "path": "/user/avatar/upload",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/avatar.jpg",
+                      "description": "头像文件(JPG/PNG)"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "username": "testuser001",
+                      "avatar_url": "http://localhost:8888/uploads/avatars/avatar.jpg",
+                      "created_at": "2024-01-01T12:00:00Z",
+                      "updated_at": "2024-01-01T12:00:00Z"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "21-上传头像-失败-未登录",
+                "method": "PUT",
+                "path": "/user/avatar/upload",
+                "parameters": [],
+                "headers": [],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/avatar.jpg"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "22-上传头像-失败-无效Token",
+                "method": "PUT",
+                "path": "/user/avatar/upload",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "invalid-token"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/avatar.jpg"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid token"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "【视频模块】",
+        "description": "视频上传、列表、搜索、热门排行相关接口",
+        "folders": [
+          {
+            "name": "【视频上传】",
+            "items": [
+              {
+                "name": "23-上传视频-成功",
+                "method": "POST",
+                "path": "/video/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/video.mp4",
+                      "description": "视频文件"
+                    },
+                    {
+                      "key": "title",
+                      "value": "测试视频标题",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "这是一个测试视频的描述内容",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "postProcessors": [
+                  {
+                    "type": "extract",
+                    "variable": "videoId1",
+                    "jsonPath": "$.data.id"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "title": "测试视频标题",
+                      "video_url": "http://localhost:8888/uploads/videos/video.mp4",
+                      "cover_url": "http://localhost:8888/uploads/videos/cover.jpg"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "24-上传视频-失败-未登录",
+                "method": "POST",
+                "path": "/video/publish",
+                "parameters": [],
+                "headers": [],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/video.mp4"
+                    },
+                    {
+                      "key": "title",
+                      "value": "测试视频",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "25-上传视频-失败-缺少标题",
+                "method": "POST",
+                "path": "/video/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/video.mp4"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "title is required"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "26-上传视频-边界-空标题",
+                "method": "POST",
+                "path": "/video/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/video.mp4"
+                    },
+                    {
+                      "key": "title",
+                      "value": "",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "title is required"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【视频列表】",
+            "items": [
+              {
+                "name": "27-获取视频列表-成功-有user_id",
+                "method": "GET",
+                "path": "/video/list",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId1}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [
+                        {
+                          "id": "uuid-string",
+                          "user_id": "uuid-string",
+                          "username": "testuser001",
+                          "title": "测试视频标题",
+                          "video_url": "http://localhost:8888/uploads/videos/video.mp4",
+                          "cover_url": "http://localhost:8888/uploads/videos/cover.jpg",
+                          "description": "视频描述",
+                          "like_count": 0,
+                          "comment_count": 0,
+                          "visit_count": 0,
+                          "created_at": "2024-01-01T12:00:00Z"
+                        }
+                      ],
+                      "total": 1,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "28-获取视频列表-成功-无user_id(全部)",
+                "method": "GET",
+                "path": "/video/list",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "29-获取视频列表-边界-空列表",
+                "method": "GET",
+                "path": "/video/list",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId2}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "30-获取视频列表-边界-分页参数",
+                "method": "GET",
+                "path": "/video/list",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "2",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "5",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 2,
+                      "size": 5
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【视频搜索】",
+            "items": [
+              {
+                "name": "31-搜索视频-成功-有关键词",
+                "method": "POST",
+                "path": "/video/search",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "keyword": "测试",
+                    "page": 1,
+                    "size": 10
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "32-搜索视频-成功-按用户名",
+                "method": "POST",
+                "path": "/video/search",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "username": "testuser001",
+                    "page": 1,
+                    "size": 10
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "33-搜索视频-成功-按日期范围",
+                "method": "POST",
+                "path": "/video/search",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "keyword": "测试",
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-12-31",
+                    "page": 1,
+                    "size": 10
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "34-搜索视频-成功-组合条件",
+                "method": "POST",
+                "path": "/video/search",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "keyword": "测试",
+                    "username": "testuser001",
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-12-31",
+                    "page": 1,
+                    "size": 10
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              {
+                "name": "35-搜索视频-边界-空关键词",
+                "method": "POST",
+                "path": "/video/search",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "keyword": "",
+                    "page": 1,
+                    "size": 10
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0,
+                      "page": 1,
+                      "size": 10
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【热门视频】",
+            "items": [
+              {
+                "name": "36-获取热门视频-成功",
+                "method": "GET",
+                "path": "/video/popular",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0
+                    }
+                  }
+                }
+              },
+              {
+                "name": "37-获取热门视频-边界-空列表",
+                "method": "GET",
+                "path": "/video/popular",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "【互动模块】",
+        "description": "点赞、评论相关接口",
+        "folders": [
+          {
+            "name": "【点赞操作】",
+            "items": [
+              {
+                "name": "38-点赞视频-成功",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "like success"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "39-点赞视频-失败-未登录",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "40-点赞视频-失败-缺少video_id",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "video_id is required"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "41-点赞视频-失败-无效video_id",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "invalid-uuid",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "video not found"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "42-取消点赞-成功",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "action": 2
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "unlike success"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "43-点赞视频-边界-重复点赞",
+                "method": "POST",
+                "path": "/like/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "already liked"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【点赞列表】",
+            "items": [
+              {
+                "name": "44-获取点赞列表-成功",
+                "method": "GET",
+                "path": "/like/list",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId1}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "videos": [],
+                      "total": 0
+                    }
+                  }
+                }
+              },
+              {
+                "name": "45-获取点赞列表-失败-缺少user_id",
+                "method": "GET",
+                "path": "/like/list",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user_id is required"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【评论操作】",
+            "items": [
+              {
+                "name": "46-发布评论-成功",
+                "method": "POST",
+                "path": "/comment/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "content": "这个视频太棒了！非常精彩的内容。"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extract",
+                    "variable": "commentId1",
+                    "jsonPath": "$.data.id"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "video_id": "uuid-string",
+                      "user_id": "uuid-string",
+                      "username": "testuser001",
+                      "content": "这个视频太棒了！非常精彩的内容。",
+                      "created_at": "2024-01-01T12:00:00Z"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "47-发布评论-失败-未登录",
+                "method": "POST",
+                "path": "/comment/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "content": "测试评论"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "48-发布评论-失败-内容为空",
+                "method": "POST",
+                "path": "/comment/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "content": ""
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "content is required"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "49-发布评论-失败-缺少video_id",
+                "method": "POST",
+                "path": "/comment/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "content": "测试评论"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "video_id is required"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "50-发布评论-边界-内容过长",
+                "method": "POST",
+                "path": "/comment/publish",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "video_id": "{{videoId1}}",
+                    "content": "这是一个非常长的评论内容，超过了系统允许的最大长度限制。这是一个非常长的评论内容，超过了系统允许的最大长度限制。这是一个非常长的评论内容，超过了系统允许的最大长度限制。这是一个非常长的评论内容，超过了系统允许的最大长度限制。这是一个非常长的评论内容，超过了系统允许的最大长度限制。"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "content too long"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【评论列表】",
+            "items": [
+              {
+                "name": "51-获取评论列表-成功",
+                "method": "GET",
+                "path": "/comment/list",
+                "parameters": [
+                  {
+                    "key": "video_id",
+                    "value": "{{videoId1}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "comments": [
+                        {
+                          "id": "uuid-string",
+                          "video_id": "uuid-string",
+                          "user_id": "uuid-string",
+                          "username": "testuser001",
+                          "avatar_url": "",
+                          "content": "这个视频太棒了！",
+                          "parent_id": "",
+                          "created_at": "2024-01-01T12:00:00Z",
+                          "replies": []
+                        }
+                      ],
+                      "total": 1
+                    }
+                  }
+                }
+              },
+              {
+                "name": "52-获取评论列表-失败-缺少video_id",
+                "method": "GET",
+                "path": "/comment/list",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "video_id is required"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【删除评论】",
+            "items": [
+              {
+                "name": "53-删除评论-成功",
+                "method": "DELETE",
+                "path": "/comment/delete",
+                "parameters": [
+                  {
+                    "key": "comment_id",
+                    "value": "{{commentId1}}",
+                    "type": "string"
+                  }
+                ],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "delete success"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "54-删除评论-失败-无权限",
+                "method": "DELETE",
+                "path": "/comment/delete",
+                "parameters": [
+                  {
+                    "key": "comment_id",
+                    "value": "{{commentId1}}",
+                    "type": "string"
+                  }
+                ],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken2}}"
+                  }
+                ],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "permission denied"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "55-删除评论-失败-未登录",
+                "method": "DELETE",
+                "path": "/comment/delete",
+                "parameters": [
+                  {
+                    "key": "comment_id",
+                    "value": "{{commentId1}}",
+                    "type": "string"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "56-删除评论-失败-缺少comment_id",
+                "method": "DELETE",
+                "path": "/comment/delete",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "comment_id is required"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "【社交模块】",
+        "description": "关注、粉丝、好友相关接口",
+        "folders": [
+          {
+            "name": "【关注操作】",
+            "items": [
+              {
+                "name": "57-关注用户-成功",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "{{userId2}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "follow success"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "58-关注用户-失败-未登录",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "{{userId2}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "59-关注用户-失败-不能关注自己",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "{{userId1}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "cannot follow yourself"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "60-关注用户-失败-无效followee_id",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "invalid-uuid",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user not found"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "61-取消关注-成功",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "{{userId2}}",
+                    "action": 2
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "unfollow success"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "62-关注用户-边界-重复关注",
+                "method": "POST",
+                "path": "/relation/action",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "followee_id": "{{userId2}}",
+                    "action": 1
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "already following"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【关注列表】",
+            "items": [
+              {
+                "name": "63-获取关注列表-成功",
+                "method": "GET",
+                "path": "/following/list",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId1}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "users": [
+                        {
+                          "id": "uuid-string",
+                          "username": "testuser002",
+                          "avatar_url": "",
+                          "is_following": true
+                        }
+                      ],
+                      "total": 1
+                    }
+                  }
+                }
+              },
+              {
+                "name": "64-获取关注列表-失败-缺少user_id",
+                "method": "GET",
+                "path": "/following/list",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user_id is required"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【粉丝列表】",
+            "items": [
+              {
+                "name": "65-获取粉丝列表-成功",
+                "method": "GET",
+                "path": "/follower/list",
+                "parameters": [
+                  {
+                    "key": "user_id",
+                    "value": "{{userId2}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "users": [
+                        {
+                          "id": "uuid-string",
+                          "username": "testuser001",
+                          "avatar_url": "",
+                          "is_following": false
+                        }
+                      ],
+                      "total": 1
+                    }
+                  }
+                }
+              },
+              {
+                "name": "66-获取粉丝列表-失败-缺少user_id",
+                "method": "GET",
+                "path": "/follower/list",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "user_id is required"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【好友列表】",
+            "items": [
+              {
+                "name": "67-获取好友列表-成功",
+                "method": "GET",
+                "path": "/friends/list",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "users": [],
+                      "total": 0
+                    }
+                  }
+                }
+              },
+              {
+                "name": "68-获取好友列表-失败-未登录",
+                "method": "GET",
+                "path": "/friends/list",
+                "parameters": [
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "type": "integer"
+                  },
+                  {
+                    "key": "size",
+                    "value": "10",
+                    "type": "integer"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "【上传模块】",
+        "description": "分片上传、上传策略相关接口",
+        "folders": [
+          {
+            "name": "【上传策略】",
+            "items": [
+              {
+                "name": "69-获取上传策略-成功",
+                "method": "GET",
+                "path": "/upload/strategy/decide",
+                "parameters": [],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "strategy": "normal",
+                      "max_size": 104857600,
+                      "chunk_size": 5242880
+                    }
+                  }
+                }
+              },
+              {
+                "name": "70-获取上传建议-小文件",
+                "method": "GET",
+                "path": "/upload/strategy/recommendation",
+                "parameters": [
+                  {
+                    "key": "file_size",
+                    "value": "1048576",
+                    "description": "1MB"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "recommended_strategy": "normal",
+                      "reason": "文件小于100MB，建议使用普通上传"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "71-获取上传建议-大文件",
+                "method": "GET",
+                "path": "/upload/strategy/recommendation",
+                "parameters": [
+                  {
+                    "key": "file_size",
+                    "value": "104857600",
+                    "description": "100MB"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "recommended_strategy": "chunked",
+                      "reason": "文件大于等于100MB，建议使用分片上传"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "72-获取上传建议-边界-超大文件",
+                "method": "GET",
+                "path": "/upload/strategy/recommendation",
+                "parameters": [
+                  {
+                    "key": "file_size",
+                    "value": "1073741824",
+                    "description": "1GB"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "recommended_strategy": "chunked",
+                      "reason": "文件大于等于100MB，建议使用分片上传"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "【分片上传】",
+            "items": [
+              {
+                "name": "73-初始化分片上传-成功",
+                "method": "POST",
+                "path": "/upload/init",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "file_name": "large_video.mp4",
+                    "file_size": 104857600,
+                    "chunk_count": 20,
+                    "title": "大文件测试视频",
+                    "description": "这是一个使用分片上传的大文件测试"
+                  }
+                },
+                "postProcessors": [
+                  {
+                    "type": "extract",
+                    "variable": "taskId",
+                    "jsonPath": "$.data.task_id"
+                  }
+                ],
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "task_id": "uuid-string",
+                      "upload_url": "http://localhost:8888/upload/chunk"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "74-初始化分片上传-失败-未登录",
+                "method": "POST",
+                "path": "/upload/init",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "file_name": "large_video.mp4",
+                    "file_size": 104857600,
+                    "chunk_count": 20,
+                    "title": "大文件测试视频"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "75-初始化分片上传-失败-缺少必填字段",
+                "method": "POST",
+                "path": "/upload/init",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "file_name": "large_video.mp4"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "invalid request parameters"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "76-上传分片-成功",
+                "method": "POST",
+                "path": "/upload/chunk",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "task_id",
+                      "value": "{{taskId}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "chunk_index",
+                      "value": "0",
+                      "type": "text",
+                      "description": "分片索引(从0开始)"
+                    },
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/chunk0.bin",
+                      "description": "分片数据"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "chunk uploaded successfully"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "77-上传分片-失败-无效task_id",
+                "method": "POST",
+                "path": "/upload/chunk",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "form-data",
+                  "content": [
+                    {
+                      "key": "task_id",
+                      "value": "invalid-task-id",
+                      "type": "text"
+                    },
+                    {
+                      "key": "chunk_index",
+                      "value": "0",
+                      "type": "text"
+                    },
+                    {
+                      "key": "data",
+                      "type": "file",
+                      "src": "/path/to/chunk0.bin"
+                    }
+                  ]
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "task not found"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "78-查询上传状态-成功",
+                "method": "GET",
+                "path": "/upload/status",
+                "parameters": [
+                  {
+                    "key": "task_id",
+                    "value": "{{taskId}}",
+                    "type": "string"
+                  }
+                ],
+                "headers": [
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "task_id": "uuid-string",
+                      "total_chunks": 20,
+                      "uploaded_chunks": [0, 1, 2],
+                      "status": "uploading"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "79-查询上传状态-失败-未登录",
+                "method": "GET",
+                "path": "/upload/status",
+                "parameters": [
+                  {
+                    "key": "task_id",
+                    "value": "{{taskId}}",
+                    "type": "string"
+                  }
+                ],
+                "headers": [],
+                "body": null,
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "80-合并分片-成功",
+                "method": "POST",
+                "path": "/upload/merge",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "task_id": "{{taskId}}"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "id": "uuid-string",
+                      "title": "大文件测试视频",
+                      "video_url": "http://localhost:8888/uploads/videos/large_video.mp4"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "81-合并分片-失败-分片未完成",
+                "method": "POST",
+                "path": "/upload/merge",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "task_id": "{{taskId}}"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "not all chunks uploaded"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "82-取消上传-成功",
+                "method": "POST",
+                "path": "/upload/cancel",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Access-Token",
+                    "value": "{{accessToken1}}"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "task_id": "{{taskId}}"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": 10000,
+                      "msg": "success"
+                    },
+                    "data": {
+                      "message": "upload cancelled"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "83-取消上传-失败-未登录",
+                "method": "POST",
+                "path": "/upload/cancel",
+                "parameters": [],
+                "headers": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "type": "json",
+                  "content": {
+                    "task_id": "{{taskId}}"
+                  }
+                },
+                "expectedResponse": {
+                  "status": 200,
+                  "body": {
+                    "base": {
+                      "code": -1,
+                      "msg": "unauthorized"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
