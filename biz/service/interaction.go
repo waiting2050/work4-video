@@ -35,7 +35,7 @@ func NewInteractionService(db *gorm.DB) *InteractionService {
 func (s *InteractionService) LikeAction(userID, videoID string, actionType int) error {
 	// 首先检查视频是否存在
 	var video model.Video
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", videoID).First(&video).Error; err != nil {
+	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("video not found")
 		}
@@ -66,7 +66,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 
 		// 在事务内再次检查是否已点赞（防止并发问题）
 		var existingLike model.Like
-		err := tx.Where("user_id = ? AND video_id = ? AND deleted_at IS NULL", userID, videoID).First(&existingLike).Error
+		err := tx.Where("user_id = ? AND video_id = ?", userID, videoID).First(&existingLike).Error
 		if err == nil {
 			tx.Rollback()
 			// 数据库中已存在，异步更新缓存
@@ -118,7 +118,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			}
 		}()
 
-		result := tx.Where("user_id = ? AND video_id = ? AND deleted_at IS NULL", userID, videoID).Delete(&model.Like{})
+		result := tx.Where("user_id = ? AND video_id = ?", userID, videoID).Delete(&model.Like{})
 		if result.Error != nil {
 			tx.Rollback()
 			return fmt.Errorf("failed to delete like: %w", result.Error)
@@ -179,7 +179,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 
 	if len(videoIDs) > 0 {
 		var videos []model.Video
-		if err := s.db.Where("id IN ? AND deleted_at IS NULL", videoIDs).Find(&videos).Error; err != nil {
+		if err := s.db.Where("id IN ?", videoIDs).Find(&videos).Error; err != nil {
 			return nil, 0, fmt.Errorf("failed to get videos: %w", err)
 		}
 		return videos, total, nil
@@ -189,11 +189,11 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 
 	offset := (pageNum - 1) * pageSize
 
-	if err := s.db.Model(&model.Like{}).Where("user_id = ? AND deleted_at IS NULL", userID).Count(&total).Error; err != nil {
+	if err := s.db.Model(&model.Like{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count likes: %w", err)
 	}
 
-	if err := s.db.Where("user_id = ? AND deleted_at IS NULL", userID).
+	if err := s.db.Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
@@ -211,7 +211,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 	}
 
 	var videos []model.Video
-	if err := s.db.Where("id IN ? AND deleted_at IS NULL", videoIDs).Find(&videos).Error; err != nil {
+	if err := s.db.Where("id IN ?", videoIDs).Find(&videos).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to get videos: %w", err)
 	}
 
@@ -228,7 +228,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 //   - error: 错误信息
 func (s *InteractionService) PublishComment(userID, videoID, content string) (*model.Comment, error) {
 	var video model.Video
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", videoID).First(&video).Error; err != nil {
+	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("video not found")
 		}
@@ -282,15 +282,15 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 
 	offset := (pageNum - 1) * pageSize
 
-	if err := s.db.Model(&model.Comment{}).Where("video_id = ? AND deleted_at IS NULL", videoID).Count(&total).Error; err != nil {
+	if err := s.db.Model(&model.Comment{}).Where("video_id = ?", videoID).Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count comments: %w", err)
 	}
 
-	if err := s.db.Where("video_id = ? AND deleted_at IS NULL", videoID).
-	Order("created_at DESC").
-	Offset(offset).
-	Limit(pageSize).
-	Find(&comments).Error; err != nil {
+	if err := s.db.Where("video_id = ?", videoID).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&comments).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to get comments: %w", err)
 	}
 
@@ -305,7 +305,7 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 //   - error: 错误信息
 func (s *InteractionService) DeleteComment(userID, commentID string) error {
 	var comment model.Comment
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", commentID).First(&comment).Error; err != nil {
+	if err := s.db.Where("id = ?", commentID).First(&comment).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("comment not found")
 		}

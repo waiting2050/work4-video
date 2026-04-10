@@ -40,7 +40,7 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 
 	// 检查目标用户是否存在
 	var targetUser model.User
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", toUserID).First(&targetUser).Error; err != nil {
+	if err := s.db.Where("id = ?", toUserID).First(&targetUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[SocialService.FollowAction] Target user not found: %s", toUserID)
 			return errors.New("target user not found")
@@ -59,7 +59,7 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 		}()
 
 		var existingFollow model.Follow
-		err := tx.Where("follower_id = ? AND followee_id = ? AND deleted_at IS NULL", userID, toUserID).First(&existingFollow).Error
+		err := tx.Where("follower_id = ? AND followee_id = ?", userID, toUserID).First(&existingFollow).Error
 
 		if err == nil {
 			tx.Rollback()
@@ -88,7 +88,7 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 		return nil
 	} else if actionType == 1 {
 		// 取消关注操作
-		result := s.db.Where("follower_id = ? AND followee_id = ? AND deleted_at IS NULL", userID, toUserID).Delete(&model.Follow{})
+		result := s.db.Where("follower_id = ? AND followee_id = ?", userID, toUserID).Delete(&model.Follow{})
 		if result.Error != nil {
 			log.Printf("[SocialService.FollowAction] Failed to delete follow: %v", result.Error)
 			return fmt.Errorf("failed to delete follow: %w", result.Error)
@@ -123,13 +123,13 @@ func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]m
 	offset := (pageNum - 1) * pageSize
 
 	// 查询关注总数
-	if err := s.db.Model(&model.Follow{}).Where("follower_id = ? AND deleted_at IS NULL", userID).Count(&total).Error; err != nil {
+	if err := s.db.Model(&model.Follow{}).Where("follower_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("[SocialService.GetFollowList] Failed to count follows: %v", err)
 		return nil, 0, fmt.Errorf("failed to count follows: %w", err)
 	}
 
 	// 查询关注列表
-	if err := s.db.Where("follower_id = ? AND deleted_at IS NULL", userID).
+	if err := s.db.Where("follower_id = ?", userID).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
@@ -147,7 +147,7 @@ func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]m
 	// 查询用户信息
 	var users []model.User
 	if len(followeeIDs) > 0 {
-		if err := s.db.Where("id IN ? AND deleted_at IS NULL", followeeIDs).Find(&users).Error; err != nil {
+		if err := s.db.Where("id IN ?", followeeIDs).Find(&users).Error; err != nil {
 			log.Printf("[SocialService.GetFollowList] Failed to get users: %v", err)
 			return nil, 0, fmt.Errorf("failed to get users: %w", err)
 		}
@@ -173,13 +173,13 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 	offset := (pageNum - 1) * pageSize
 
 	// 查询粉丝总数
-	if err := s.db.Model(&model.Follow{}).Where("followee_id = ? AND deleted_at IS NULL", userID).Count(&total).Error; err != nil {
+	if err := s.db.Model(&model.Follow{}).Where("followee_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("[SocialService.GetFollowerList] Failed to count followers: %v", err)
 		return nil, 0, fmt.Errorf("failed to count followers: %w", err)
 	}
 
 	// 查询粉丝列表
-	if err := s.db.Where("followee_id = ? AND deleted_at IS NULL", userID).
+	if err := s.db.Where("followee_id = ?", userID).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
@@ -197,7 +197,7 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 	// 查询用户信息
 	var users []model.User
 	if len(followerIDs) > 0 {
-		if err := s.db.Where("id IN ? AND deleted_at IS NULL", followerIDs).Find(&users).Error; err != nil {
+		if err := s.db.Where("id IN ?", followerIDs).Find(&users).Error; err != nil {
 			log.Printf("[SocialService.GetFollowerList] Failed to get users: %v", err)
 			return nil, 0, fmt.Errorf("failed to get users: %w", err)
 		}
@@ -228,53 +228,41 @@ func (s *SocialService) GetFriendList(userID string, pageNum, pageSize int) ([]m
 		pageSize = 100 // 限制最大页大小
 	}
 
-	// 查询用户关注列表
-	var following []model.Follow
-	if err := s.db.Where("follower_id = ? AND deleted_at IS NULL", userID).Find(&following).Error; err != nil {
-		log.Printf("[SocialService.GetFriendList] Failed to get following: %v", err)
-		return nil, 0, fmt.Errorf("failed to get following: %w", err)
-	}
+	offset := (pageNum - 1) * pageSize
 
-	// 构建关注用户ID映射
-	followingMap := make(map[string]bool)
-	for _, f := range following {
-		followingMap[f.FolloweeID] = true
-	}
-
-	// 查询用户粉丝列表
-	var followers []model.Follow
-	if err := s.db.Where("followee_id = ? AND deleted_at IS NULL", userID).Find(&followers).Error; err != nil {
-		log.Printf("[SocialService.GetFriendList] Failed to get followers: %v", err)
-		return nil, 0, fmt.Errorf("failed to get followers: %w", err)
-	}
-
-	// 筛选互相关注的用户ID
 	var friendIDs []string
-	for _, f := range followers {
-		if followingMap[f.FollowerID] {
-			friendIDs = append(friendIDs, f.FollowerID)
-		}
+	var total int64
+
+	subQuery := s.db.Model(&model.Follow{}).
+		Select("1").
+		Where("follower_id = ? AND followee_id = follows.follower_id", userID)
+
+	if err := s.db.Model(&model.Follow{}).
+		Select("DISTINCT follower_id"). // 防止软删除记录干扰
+		Where("follower_id != ?", userID).
+		Where("followee_id = ?", userID).
+		Where("EXISTS (?)", subQuery).
+		Count(&total).Error; err != nil {
+		log.Printf("[SocialService.GetFriendList] Failed to count friends: %v", err)
+		return nil, 0, fmt.Errorf("failed to count friends: %w", err)
 	}
 
-	total := int64(len(friendIDs))
+	if err := s.db.Model(&model.Follow{}).
+		Select("DISTINCT follower_id").
+		Where("follower_id != ?", userID).
+		Where("followee_id = ?", userID).
+		Where("EXISTS (?)", subQuery).
+		Offset(offset).Limit(pageSize).
+		Pluck("follower_id", &friendIDs).Error; err != nil {
+		log.Printf("[SocialService.GetFriendList] Failed to get friend IDs: %v", err)
+		return nil, 0, fmt.Errorf("failed to get friend IDs: %w", err)
+	}
 
-	// 别的函数先查数据库，利用数据库分页，但是数据库不存在直接的好友记录，所以
-	// 没法用同样的方法，选择在切片里实现分页
 	var users []model.User
 	if len(friendIDs) > 0 {
-		offset := (pageNum - 1) * pageSize
-		if offset < 0 {
-			offset = 0
-		}
-		if offset < len(friendIDs) {
-			end := offset + pageSize
-			if end > len(friendIDs) {
-				end = len(friendIDs)
-			}
-			if err := s.db.Where("id IN ? AND deleted_at IS NULL", friendIDs[offset:end]).Find(&users).Error; err != nil {
-				log.Printf("[SocialService.GetFriendList] Failed to get users: %v", err)
-				return nil, 0, fmt.Errorf("failed to get users: %w", err)
-			}
+		if err := s.db.Where("id IN ?", friendIDs).Find(&users).Error; err != nil {
+			log.Printf("[SocialService.GetFriendList] Failed to get users: %v", err)
+			return nil, 0, fmt.Errorf("failed to get users: %w", err)
 		}
 	}
 

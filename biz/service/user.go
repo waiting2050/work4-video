@@ -36,7 +36,7 @@ func NewUserService(db *gorm.DB) *UserService {
 func (s *UserService) Register(username, password string) (*model.User, error) {
 	// 检查用户名是否已存在
 	var existingUser model.User
-	if err := s.db.Where("username = ? AND deleted_at IS NULL", username).First(&existingUser).Error; err == nil {
+	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {
 		log.Printf("[UserService.Register] Username already exists: %s", username)
 		return nil, errors.New("username already exists")
 	}
@@ -77,7 +77,7 @@ func (s *UserService) Register(username, password string) (*model.User, error) {
 func (s *UserService) Login(username, password string) (*model.User, string, string, error) {
 	// 查询用户
 	var user model.User
-	if err := s.db.Where("username = ? AND deleted_at IS NULL", username).First(&user).Error; err != nil {
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UserService.Login] User not found: %s", username)
 			return nil, "", "", errors.New("user not found")
@@ -117,7 +117,7 @@ func (s *UserService) Login(username, password string) (*model.User, string, str
 //   - error: 错误信息
 func (s *UserService) GetUserInfo(userID string) (*model.User, error) {
 	var user model.User
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", userID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UserService.GetUserInfo] User not found: %s", userID)
 			return nil, errors.New("user not found")
@@ -137,7 +137,7 @@ func (s *UserService) GetUserInfo(userID string) (*model.User, error) {
 //   - error: 错误信息
 func (s *UserService) UpdateAvatar(userID, avatarURL string) (*model.User, error) {
 	// 更新头像
-	result := s.db.Model(&model.User{}).Where("id = ? AND deleted_at IS NULL", userID).Update("avatar_url", avatarURL)
+	result := s.db.Model(&model.User{}).Where("id = ?", userID).Update("avatar_url", avatarURL)
 	if result.Error != nil {
 		log.Printf("[UserService.UpdateAvatar] Failed to update avatar: %v", result.Error)
 		return nil, fmt.Errorf("failed to update avatar: %w", result.Error)
@@ -149,7 +149,7 @@ func (s *UserService) UpdateAvatar(userID, avatarURL string) (*model.User, error
 
 	// 查询更新后的用户信息
 	var user model.User
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", userID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		log.Printf("[UserService.UpdateAvatar] Failed to get updated user: %v", err)
 		return nil, fmt.Errorf("failed to get updated user: %w", err)
 	}

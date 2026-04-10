@@ -128,7 +128,7 @@ type UploadChunkRequest struct {
 func (s *UploadService) UploadChunk(userID string, req *UploadChunkRequest, chunkData []byte) error {
 	// 查询上传任务
 	var task model.UploadTask
-	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL",
+	if err := s.db.Where("id = ? AND user_id = ?",
 		req.TaskID, userID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UploadService.UploadChunk] Upload task not found: %s", req.TaskID)
@@ -172,7 +172,7 @@ func (s *UploadService) UploadChunk(userID string, req *UploadChunkRequest, chun
 
 	// 检查分片是否已上传（在事务内检查）
 	var existingChunk model.UploadChunk
-	err := tx.Where("task_id = ? AND chunk_index = ? AND deleted_at IS NULL", req.TaskID, req.ChunkIndex).First(&existingChunk).Error
+	err := tx.Where("task_id = ? AND chunk_index = ?", req.TaskID, req.ChunkIndex).First(&existingChunk).Error
 	if err == nil {
 		// 分片已存在，验证完整性
 		chunkPath := filepath.Join(UploadDir, req.TaskID, fmt.Sprintf("chunk_%d", req.ChunkIndex))
@@ -246,7 +246,7 @@ func (s *UploadService) UploadChunk(userID string, req *UploadChunkRequest, chun
 // GetUploadStatus 获取上传任务状态
 func (s *UploadService) GetUploadStatus(userID, taskID string) (map[string]interface{}, error) {
 	var task model.UploadTask
-	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL", taskID, userID).First(&task).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UploadService.GetUploadStatus] Upload task not found: %s", taskID)
 			return nil, errors.New("upload task not found")
@@ -257,7 +257,7 @@ func (s *UploadService) GetUploadStatus(userID, taskID string) (map[string]inter
 
 	// 获取已上传的分片索引
 	var chunks []model.UploadChunk
-	if err := s.db.Where("task_id = ? AND deleted_at IS NULL", taskID).Find(&chunks).Error; err != nil {
+	if err := s.db.Where("task_id = ?", taskID).Find(&chunks).Error; err != nil {
 		log.Printf("[UploadService.GetUploadStatus] Failed to get chunks: %v", err)
 		return nil, fmt.Errorf("failed to get chunks: %w", err)
 	}
@@ -292,7 +292,7 @@ type MergeChunksRequest struct {
 func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (string, string, string, error) {
 	// 查询上传任务
 	var task model.UploadTask
-	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL", req.TaskID, userID).First(&task).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ?", req.TaskID, userID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UploadService.MergeChunks] Upload task not found: %s", req.TaskID)
 			return "", "", "", errors.New("upload task not found")
@@ -317,7 +317,7 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 
 	// 获取所有分片
 	var chunks []model.UploadChunk
-	if err := s.db.Where("task_id = ? AND deleted_at IS NULL", req.TaskID).Order("chunk_index").Find(&chunks).Error; err != nil {
+	if err := s.db.Where("task_id = ?", req.TaskID).Order("chunk_index").Find(&chunks).Error; err != nil {
 		log.Printf("[UploadService.MergeChunks] Failed to get chunks: %v", err)
 		return "", "", "", fmt.Errorf("failed to get chunks: %w", err)
 	}
@@ -403,7 +403,7 @@ func (s *UploadService) cleanupChunks(taskID string) {
 // 取消上传任务
 func (s *UploadService) CancelUpload(userID, taskID string) error {
 	var task model.UploadTask
-	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL", taskID, userID).First(&task).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[UploadService.CancelUpload] Upload task not found: %s", taskID)
 			return errors.New("upload task not found")

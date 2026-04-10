@@ -60,14 +60,14 @@ func (s *VideoService) GetPublishList(userID string, pageNum, pageSize int) ([]m
 
 	offset := (pageNum - 1) * pageSize
 
-	// 查询总数，添加软删除检查
-	if err := s.db.Model(&model.Video{}).Where("user_id = ? AND deleted_at IS NULL", userID).Count(&total).Error; err != nil {
+	// 查询总数
+	if err := s.db.Model(&model.Video{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("[VideoService.GetPublishList] Failed to count videos: %v", err)
 		return nil, 0, fmt.Errorf("failed to count videos: %w", err)
 	}
 
-	// 查询视频列表，添加软删除检查
-	if err := s.db.Where("user_id = ? AND deleted_at IS NULL", userID).
+	// 查询视频列表
+	if err := s.db.Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
@@ -98,8 +98,8 @@ func (s *VideoService) SearchVideo(keywords, username string, fromDate, toDate i
 	var total int64
 
 	offset := (pageNum - 1) * pageSize
-	// 基础查询添加软删除检查
-	query := s.db.Model(&model.Video{}).Where("deleted_at IS NULL")
+	// 基础查询
+	query := s.db.Model(&model.Video{})
 
 	if keywords != "" {
 		query = query.Where("title LIKE ? OR description LIKE ?", "%"+keywords+"%", "%"+keywords+"%")
@@ -107,7 +107,7 @@ func (s *VideoService) SearchVideo(keywords, username string, fromDate, toDate i
 
 	if username != "" {
 		var user model.User
-		if err := s.db.Where("username = ? AND deleted_at IS NULL", username).First(&user).Error; err != nil {
+		if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				log.Printf("[VideoService.SearchVideo] User not found: %s", username)
 				return []model.Video{}, 0, nil
@@ -168,8 +168,8 @@ func (s *VideoService) GetPopularVideos(pageNum, pageSize int) ([]model.Video, e
 	var dbVideos []model.Video
 	offset := (pageNum - 1) * pageSize
 
-	// 从数据库查询，添加软删除检查
-	if err := s.db.Where("deleted_at IS NULL").Order("visit_count DESC").
+	// 从数据库查询
+	if err := s.db.Order("visit_count DESC").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&dbVideos).Error; err != nil {
@@ -193,7 +193,7 @@ func (s *VideoService) GetPopularVideos(pageNum, pageSize int) ([]model.Video, e
 // 返回：
 //   - error: 错误信息
 func (s *VideoService) IncrementVisitCount(videoID string) error {
-	result := s.db.Model(&model.Video{}).Where("id = ? AND deleted_at IS NULL", videoID).
+	result := s.db.Model(&model.Video{}).Where("id = ?", videoID).
 		UpdateColumn("visit_count", gorm.Expr("visit_count + ?", 1))
 	if result.Error != nil {
 		log.Printf("[VideoService.IncrementVisitCount] Failed to increment visit count: %v", result.Error)
@@ -215,7 +215,7 @@ func (s *VideoService) IncrementVisitCount(videoID string) error {
 //   - error: 错误信息
 func (s *VideoService) GetVideoByID(videoID string) (*model.Video, error) {
 	var video model.Video
-	if err := s.db.Where("id = ? AND deleted_at IS NULL", videoID).First(&video).Error; err != nil {
+	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("[VideoService.GetVideoByID] Video not found: %s", videoID)
 			return nil, errors.New("video not found")

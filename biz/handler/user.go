@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,10 +137,21 @@ func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	filename := userID + "_" + time.Now().Format("20060102150405") + ext
 	uploadPath := filepath.Join("uploads/avatars", filename)
 
+	log.Printf("[UploadAvatar] Saving file to: %s, original filename: %s", uploadPath, file.Filename)
+
 	if err := c.SaveUploadedFile(file, uploadPath); err != nil {
+		log.Printf("[UploadAvatar] Failed to save file: %v", err)
 		utils.Error(c, -1, "failed to save file")
 		return
 	}
+
+	// 验证文件是否真的保存了
+	if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
+		log.Printf("[UploadAvatar] File does not exist after save: %s", uploadPath)
+		utils.Error(c, -1, "file not found after save")
+		return
+	}
+	log.Printf("[UploadAvatar] File saved successfully: %s", uploadPath)
 
 	avatarURL := "uploads/avatars/" + filename
 
