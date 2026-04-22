@@ -1,12 +1,12 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
 	"video/biz/auth"
 	"video/biz/model"
+	"video/biz/utils"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -17,38 +17,23 @@ type UserService struct {
 	db *gorm.DB
 }
 
-// NewUserService 创建用户服务实例
-// 参数：
-//   - db: 数据库连接
-// 返回：
-//   - *UserService: 用户服务实例
 func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{db: db}
 }
 
-// Register 用户注册
-// 参数：
-//   - username: 用户名
-//   - password: 密码
-// 返回：
-//   - *model.User: 用户对象
-//   - error: 错误信息
 func (s *UserService) Register(username, password string) (*model.User, error) {
-	// 检查用户名是否已存在
 	var existingUser model.User
 	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {
 		log.Printf("[UserService.Register] Username already exists: %s", username)
-		return nil, errors.New("username already exists")
+		return nil, utils.New(utils.CodeUserExists, "username already exists")
 	}
 
-	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("[UserService.Register] Failed to hash password: %v", err)
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// 创建用户
 	user := model.User{
 		ID:        uuid.New().String(),
 		Username:  username,
@@ -65,34 +50,18 @@ func (s *UserService) Register(username, password string) (*model.User, error) {
 	return &user, nil
 }
 
-// Login 用户登录
-// 参数：
-//   - username: 用户名
-//   - password: 密码
-// 返回：
-//   - *model.User: 用户对象
-//   - string: Access Token
-//   - string: Refresh Token
-//   - error: 错误信息
 func (s *UserService) Login(username, password string) (*model.User, string, string, error) {
-	// 查询用户
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("[UserService.Login] User not found: %s", username)
-			return nil, "", "", errors.New("user not found")
-		}
-		log.Printf("[UserService.Login] Failed to find user: %v", err)
-		return nil, "", "", fmt.Errorf("failed to find user: %w", err)
+		log.Printf("[UserService.Login] User not found: %s", username)
+		return nil, "", "", utils.New(utils.CodeUserNotFound, "user not found")
 	}
 
-	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		log.Printf("[UserService.Login] Invalid password for user: %s", username)
-		return nil, "", "", errors.New("invalid password")
+		return nil, "", "", utils.New(utils.CodeUnauthorized, "invalid password")
 	}
 
-	// 生成Token
 	accessToken, err := auth.GenerateAccessToken(user.ID)
 	if err != nil {
 		log.Printf("[UserService.Login] Failed to generate access token: %v", err)
@@ -109,34 +78,16 @@ func (s *UserService) Login(username, password string) (*model.User, string, str
 	return &user, accessToken, refreshToken, nil
 }
 
-// GetUserInfo 获取用户信息
-// 参数：
-//   - userID: 用户ID
-// 返回：
-//   - *model.User: 用户对象
-//   - error: 错误信息
 func (s *UserService) GetUserInfo(userID string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("[UserService.GetUserInfo] User not found: %s", userID)
-			return nil, errors.New("user not found")
-		}
-		log.Printf("[UserService.GetUserInfo] Failed to get user: %v", err)
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		log.Printf("[UserService.GetUserInfo] User not found: %s", userID)
+		return nil, utils.New(utils.CodeUserNotFound, "user not found")
 	}
 	return &user, nil
 }
 
-// UpdateAvatar 更新用户头像
-// 参数：
-//   - userID: 用户ID
-//   - avatarURL: 头像URL
-// 返回：
-//   - *model.User: 用户对象
-//   - error: 错误信息
 func (s *UserService) UpdateAvatar(userID, avatarURL string) (*model.User, error) {
-	// 更新头像
 	result := s.db.Model(&model.User{}).Where("id = ?", userID).Update("avatar_url", avatarURL)
 	if result.Error != nil {
 		log.Printf("[UserService.UpdateAvatar] Failed to update avatar: %v", result.Error)
@@ -144,10 +95,9 @@ func (s *UserService) UpdateAvatar(userID, avatarURL string) (*model.User, error
 	}
 	if result.RowsAffected == 0 {
 		log.Printf("[UserService.UpdateAvatar] User not found: %s", userID)
-		return nil, errors.New("user not found")
+		return nil, utils.New(utils.CodeUserNotFound, "user not found")
 	}
 
-	// 查询更新后的用户信息
 	var user model.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		log.Printf("[UserService.UpdateAvatar] Failed to get updated user: %v", err)

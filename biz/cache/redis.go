@@ -41,7 +41,7 @@ func InitRedis(cfg *model.Config) error {
 	return nil
 }
 
-func GetPopularVideosFromCache(pageNum, pageSize int) ([]model.Video, error) {
+func GetPopularVideosFromCache(pageNum, pageSize int) (interface{}, error) {
 	if RedisClient == nil {
 		return nil, ErrRedisDown
 	}
@@ -57,12 +57,12 @@ func GetPopularVideosFromCache(pageNum, pageSize int) ([]model.Video, error) {
 		return nil, fmt.Errorf("redis get error: %w", err)
 	}
 
-	var videos []model.Video
+	var videos interface{}
 	err = json.Unmarshal([]byte(data), &videos)
 	return videos, err
 }
 
-func SetPopularVideosCache(videos []model.Video, pageNum, pageSize int) error {
+func SetPopularVideosCache(videos interface{}, pageNum, pageSize int) error {
 	if RedisClient == nil {
 		return ErrRedisDown
 	}

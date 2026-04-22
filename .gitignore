@@ -37,3 +37,9 @@ logs/
 # Environment
 .env
 .env.local
+
+# 测试数据
+apifox-test-data.json
+postman-collection.json
+postman-importable.json
+apifox-config.json

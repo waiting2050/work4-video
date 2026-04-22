@@ -22,7 +22,7 @@ func NewInteractionHandler(InteractionService *service.InteractionService) *Inte
 func (h *InteractionHandler) LikeAction(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
@@ -30,23 +30,27 @@ func (h *InteractionHandler) LikeAction(ctx context.Context, c *app.RequestConte
 	actionTypeStr := string(c.FormValue("action_type"))
 
 	if videoID == "" {
-		utils.Error(c, -1, "video_id is required")
+		utils.Error(c, utils.CodeMissingParam, "video_id is required")
 		return
 	}
 
 	actionType, err := strconv.Atoi(actionTypeStr)
 	if err != nil {
-		utils.Error(c, -1, "invalid action_type")
+		utils.Error(c, utils.CodeInvalidParam, "invalid action_type")
 		return
 	}
 
 	if actionType != 1 && actionType != 2 {
-		utils.Error(c, -1, "action_type must be 1 (like) or 2 (unlike)")
+		utils.Error(c, utils.CodeInvalidAction, "action_type must be 1 (like) or 2 (unlike)")
 		return
 	}
 
 	if err := h.interactionService.LikeAction(userID, videoID, actionType); err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 
@@ -58,7 +62,7 @@ func (h *InteractionHandler) LikeAction(ctx context.Context, c *app.RequestConte
 func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "user_id is required")
 		return
 	}
 
@@ -74,7 +78,11 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 
 	videos, total, err := h.interactionService.GetLikeList(userID, pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, "failed to get like list")
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeDatabaseError, err.Error())
+		}
 		return
 	}
 
@@ -87,7 +95,7 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 func (h *InteractionHandler) PublishComment(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
@@ -95,18 +103,22 @@ func (h *InteractionHandler) PublishComment(ctx context.Context, c *app.RequestC
 	content := string(c.FormValue("content"))
 
 	if videoID == "" {
-		utils.Error(c, -1, "video_id is required")
+		utils.Error(c, utils.CodeMissingParam, "video_id is required")
 		return
 	}
 
 	if content == "" {
-		utils.Error(c, -1, "content is required")
+		utils.Error(c, utils.CodeMissingParam, "content is required")
 		return
 	}
 
 	comment, err := h.interactionService.PublishComment(userID, videoID, content)
 	if err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 
@@ -121,7 +133,7 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 	videoID := c.Query("video_id")
 
 	if videoID == "" {
-		utils.Error(c, -1, "video_id is required")
+		utils.Error(c, utils.CodeMissingParam, "video_id is required")
 		return
 	}
 
@@ -137,7 +149,11 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 
 	comments, total, svcErr := h.interactionService.GetCommentList(videoID, pageNum, pageSize)
 	if svcErr != nil {
-		utils.Error(c, -1, "failed to get comment list")
+		if appErr, ok := utils.IsAppError(svcErr); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeDatabaseError, svcErr.Error())
+		}
 		return
 	}
 
@@ -150,19 +166,23 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 func (h *InteractionHandler) DeleteComment(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
 	commentID := string(c.FormValue("comment_id"))
 
 	if commentID == "" {
-		utils.Error(c, -1, "comment_id is required")
+		utils.Error(c, utils.CodeMissingParam, "comment_id is required")
 		return
 	}
 
 	if err := h.interactionService.DeleteComment(userID, commentID); err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 

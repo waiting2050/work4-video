@@ -22,7 +22,7 @@ func NewSocialHandler(socialService *service.SocialService) *SocialHandler {
 func (h *SocialHandler) FollowAction(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
@@ -30,23 +30,27 @@ func (h *SocialHandler) FollowAction(ctx context.Context, c *app.RequestContext)
 	actionTypeStr := string(c.FormValue("action_type"))
 
 	if toUserID == "" {
-		utils.Error(c, -1, "to_user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "to_user_id is required")
 		return
 	}
 
 	actionType, err := strconv.Atoi(actionTypeStr)
 	if err != nil {
-		utils.Error(c, -1, "invalid action type")
+		utils.Error(c, utils.CodeInvalidParam, "invalid action type")
 		return
 	}
 
 	if actionType != 0 && actionType != 1 {
-		utils.Error(c, -1, "action_type must be 0 (follow) or 1 (unfollow)")
+		utils.Error(c, utils.CodeInvalidAction, "action_type must be 0 (follow) or 1 (unfollow)")
 		return
 	}
 
 	if err := h.socialService.FollowAction(userID, toUserID, actionType); err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 
@@ -58,7 +62,7 @@ func (h *SocialHandler) FollowAction(ctx context.Context, c *app.RequestContext)
 func (h *SocialHandler) GetFollowList(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "user_id is required")
 		return
 	}
 
@@ -74,7 +78,11 @@ func (h *SocialHandler) GetFollowList(ctx context.Context, c *app.RequestContext
 
 	users, total, err := h.socialService.GetFollowList(userID, pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeDatabaseError, err.Error())
+		}
 		return
 	}
 
@@ -87,7 +95,7 @@ func (h *SocialHandler) GetFollowList(ctx context.Context, c *app.RequestContext
 func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "user_id is required")
 		return
 	}
 
@@ -103,7 +111,11 @@ func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestConte
 
 	users, total, err := h.socialService.GetFollowerList(userID, pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeDatabaseError, err.Error())
+		}
 		return
 	}
 
@@ -116,7 +128,7 @@ func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestConte
 func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
@@ -132,7 +144,11 @@ func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext
 
 	users, total, err := h.socialService.GetFriendList(userID, pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, err.Error())
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeDatabaseError, err.Error())
+		}
 		return
 	}
 

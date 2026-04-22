@@ -5,6 +5,7 @@ package main
 import (
 	"video/biz/auth"
 	handler "video/biz/handler"
+	"video/biz/middleware"
 	"video/biz/model"
 	"video/biz/service"
 
@@ -13,6 +14,8 @@ import (
 
 // customizeRegister registers customize routers.
 func customizedRegister(r *server.Hertz) {
+	r.Use(middleware.Recovery())
+
 	// 初始化服务
 	db := model.DB
 	userService := service.NewUserService(db)
@@ -52,6 +55,8 @@ func customizedRegister(r *server.Hertz) {
 		videoGroup.GET("/list", videoHandler.GetPublishList)
 		videoGroup.POST("/search", videoHandler.SearchVideo)
 		videoGroup.GET("/popular", videoHandler.GetPopularVideos)
+		videoGroup.POST("/view/:id", videoHandler.ViewVideo)
+		videoGroup.GET("/detail/:id", videoHandler.GetVideoDetail)
 	}
 
 	// 上传策略模块（公开，用于前端决策）

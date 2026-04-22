@@ -14,9 +14,7 @@ import (
 )
 
 func init() {
-	// 确保头像上传目录存在
 	if err := os.MkdirAll("uploads/avatars", 0755); err != nil {
-		// 在init中无法处理错误，但会在首次上传时处理
 	}
 }
 
@@ -35,17 +33,16 @@ func (h *UserHandler) Register(ctx context.Context, c *app.RequestContext) {
 	}
 
 	if err := c.BindAndValidate(&req); err != nil {
-		utils.Error(c, -1, "invalid request parameters")
+		utils.Error(c, utils.CodeInvalidParam, "invalid request parameters")
 		return
 	}
 
-	// 用户可以处理的错误单独返回
 	user, err := h.userService.Register(req.Username, req.Password)
 	if err != nil {
-		if strings.Contains(err.Error(), "username already exists") {
-			utils.Error(c, -1, "username already exists")
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
 		} else {
-			utils.Error(c, -1, err.Error())
+			utils.Error(c, utils.CodeInternalError, err.Error())
 		}
 		return
 	}
@@ -65,18 +62,16 @@ func (h *UserHandler) Login(ctx context.Context, c *app.RequestContext) {
 	}
 
 	if err := c.BindAndValidate(&req); err != nil {
-		utils.Error(c, -1, "invalid request parameters")
+		utils.Error(c, utils.CodeInvalidParam, "invalid request parameters")
 		return
 	}
 
 	user, accessToken, refreshToken, err := h.userService.Login(req.Username, req.Password)
 	if err != nil {
-		if strings.Contains(err.Error(), "user not found") {
-			utils.Error(c, -1, "user not found")
-		} else if strings.Contains(err.Error(), "invalid password") {
-			utils.Error(c, -1, "invalid password")
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
 		} else {
-			utils.Error(c, -1, err.Error())
+			utils.Error(c, utils.CodeInternalError, err.Error())
 		}
 		return
 	}
@@ -96,13 +91,17 @@ func (h *UserHandler) Login(ctx context.Context, c *app.RequestContext) {
 func (h *UserHandler) GetUserInfo(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "user_id is required")
 		return
 	}
 
 	user, err := h.userService.GetUserInfo(userID)
 	if err != nil {
-		utils.Error(c, -1, "user not found")
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 
@@ -118,19 +117,19 @@ func (h *UserHandler) GetUserInfo(ctx context.Context, c *app.RequestContext) {
 func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
 	file, err := c.FormFile("data")
 	if err != nil {
-		utils.Error(c, -1, "failed to get file")
+		utils.Error(c, utils.CodeFileReadError, "failed to get file")
 		return
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		utils.Error(c, -1, "invalid file format")
+		utils.Error(c, utils.CodeInvalidFileFormat, "invalid file format")
 		return
 	}
 
@@ -141,14 +140,13 @@ func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 
 	if err := c.SaveUploadedFile(file, uploadPath); err != nil {
 		log.Printf("[UploadAvatar] Failed to save file: %v", err)
-		utils.Error(c, -1, "failed to save file")
+		utils.Error(c, utils.CodeFileSaveError, "failed to save file")
 		return
 	}
 
-	// 验证文件是否真的保存了
 	if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
 		log.Printf("[UploadAvatar] File does not exist after save: %s", uploadPath)
-		utils.Error(c, -1, "file not found after save")
+		utils.Error(c, utils.CodeFileNotExist, "file not found after save")
 		return
 	}
 	log.Printf("[UploadAvatar] File saved successfully: %s", uploadPath)
@@ -157,7 +155,11 @@ func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 
 	user, err := h.userService.UpdateAvatar(userID, avatarURL)
 	if err != nil {
-		utils.Error(c, -1, "failed to update avatar")
+		if appErr, ok := utils.IsAppError(err); ok {
+			utils.Error(c, appErr.Code, appErr.Message)
+		} else {
+			utils.Error(c, utils.CodeInternalError, err.Error())
+		}
 		return
 	}
 

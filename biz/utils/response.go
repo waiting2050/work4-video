@@ -19,8 +19,8 @@ type SuccessResponse struct {
 func Success(c *app.RequestContext, data interface{}) {
 	c.JSON(200, SuccessResponse{
 		Base: BaseResponse{
-			Code: 10000,
-			Msg:  "success",
+			Code: CodeSuccess,
+			Msg:  GetMsg(CodeSuccess),
 		},
 		Data: data,
 	})

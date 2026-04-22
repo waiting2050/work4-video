@@ -41,8 +41,15 @@ logs/
 # 编译产物
 server
 video
+video.exe
 *.exe
 *.exe~
+
+# 测试数据（不应该上传到镜像）
+apifox-test-data.json
+postman-collection.json
+postman-importable.json
+apifox-config.json
 
 # 操作系统文件
 .DS_Store

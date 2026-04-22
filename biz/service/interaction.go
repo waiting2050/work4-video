@@ -1,12 +1,12 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
 	"video/biz/cache"
 	"video/biz/model"
+	"video/biz/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -16,47 +16,18 @@ type InteractionService struct {
 	db *gorm.DB
 }
 
-// NewInteractionService 创建互动服务实例
-// 参数：
-//   - db: 数据库连接
-// 返回：
-//   - *InteractionService: 互动服务实例
 func NewInteractionService(db *gorm.DB) *InteractionService {
 	return &InteractionService{db: db}
 }
 
-// LikeAction 用户点赞/取消点赞操作
-// 参数：
-//   - userID: 用户ID
-//   - videoID: 视频ID
-//   - actionType: 操作类型，1=点赞，2=取消点赞
-// 返回：
-//   - error: 错误信息
 func (s *InteractionService) LikeAction(userID, videoID string, actionType int) error {
-	// 首先检查视频是否存在
 	var video model.Video
 	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("video not found")
-		}
-		return fmt.Errorf("failed to check video: %w", err)
-	}
-
-	isLiked, err := cache.IsUserLikedVideo(userID, videoID)
-	if err != nil {
-		if cache.IsRedisDown(err) {
-			log.Printf("[LikeAction] Redis unavailable, fallback to database check: %v", err)
-		} else {
-			log.Printf("[LikeAction] Redis error when checking like status: %v", err)
-		}
+		log.Printf("[InteractionService.LikeAction] Video not found: %s", videoID)
+		return utils.New(utils.CodeVideoNotFound, "video not found")
 	}
 
 	if actionType == 1 {
-		if isLiked {
-			return errors.New("already liked this video")
-		}
-
-		// 使用事务确保原子性操作
 		tx := s.db.Begin()
 		defer func() {
 			if r := recover(); r != nil {
@@ -64,14 +35,11 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			}
 		}()
 
-		// 在事务内再次检查是否已点赞（防止并发问题）
 		var existingLike model.Like
 		err := tx.Where("user_id = ? AND video_id = ?", userID, videoID).First(&existingLike).Error
 		if err == nil {
 			tx.Rollback()
-			// 数据库中已存在，异步更新缓存
-			go cache.AddUserLikeStatus(userID, videoID)
-			return errors.New("already liked this video")
+			return utils.New(utils.CodeAlreadyLiked, "already liked this video")
 		}
 
 		like := model.Like{
@@ -94,7 +62,6 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
-		// 异步更新缓存
 		go func() {
 			if err := cache.AddUserLikeStatus(userID, videoID); err != nil {
 				if cache.IsRedisDown(err) {
@@ -110,7 +77,6 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 
 		return nil
 	} else if actionType == 2 {
-		// 使用事务确保原子性操作
 		tx := s.db.Begin()
 		defer func() {
 			if r := recover(); r != nil {
@@ -126,7 +92,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 
 		if result.RowsAffected == 0 {
 			tx.Rollback()
-			return errors.New("like not found")
+			return utils.New(utils.CodeNotLiked, "like not found")
 		}
 
 		if err := tx.Model(&model.Video{}).Where("id = ? AND like_count > 0", videoID).UpdateColumn("like_count", gorm.Expr("like_count - 1")).Error; err != nil {
@@ -138,7 +104,6 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
-		// 异步更新缓存
 		go func() {
 			if err := cache.RemoveUserLikeStatus(userID, videoID); err != nil {
 				if cache.IsRedisDown(err) {
@@ -155,18 +120,9 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 		return nil
 	}
 
-	return errors.New("invalid action type")
+	return utils.New(utils.CodeInvalidAction, "invalid action type")
 }
 
-// GetLikeList 获取用户点赞的视频列表
-// 参数：
-//   - userID: 用户ID
-//   - pageNum: 页码，从1开始
-//   - pageSize: 每页数量
-// 返回：
-//   - []model.Video: 视频列表
-//   - int64: 总数
-//   - error: 错误信息
 func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) ([]model.Video, int64, error) {
 	videoIDs, total, err := cache.GetUserLikeIDsFromZSet(userID, pageNum, pageSize)
 	if err != nil {
@@ -218,21 +174,11 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 	return videos, total, nil
 }
 
-// PublishComment 发布评论
-// 参数：
-//   - userID: 用户ID
-//   - videoID: 视频ID
-//   - content: 评论内容
-// 返回：
-//   - *model.Comment: 评论对象
-//   - error: 错误信息
 func (s *InteractionService) PublishComment(userID, videoID, content string) (*model.Comment, error) {
 	var video model.Video
 	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("video not found")
-		}
-		return nil, fmt.Errorf("failed to check video: %w", err)
+		log.Printf("[InteractionService.PublishComment] Video not found: %s", videoID)
+		return nil, utils.New(utils.CodeVideoNotFound, "video not found")
 	}
 
 	comment := model.Comment{
@@ -267,15 +213,6 @@ func (s *InteractionService) PublishComment(userID, videoID, content string) (*m
 	return &comment, nil
 }
 
-// GetCommentList 获取视频评论列表
-// 参数：
-//   - videoID: 视频ID
-//   - pageNum: 页码，从1开始
-//   - pageSize: 每页数量
-// 返回：
-//   - []model.Comment: 评论列表
-//   - int64: 总数
-//   - error: 错误信息
 func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize int) ([]model.Comment, int64, error) {
 	var comments []model.Comment
 	var total int64
@@ -297,26 +234,17 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 	return comments, total, nil
 }
 
-// DeleteComment 删除评论
-// 参数：
-//   - userID: 用户ID
-//   - commentID: 评论ID
-// 返回：
-//   - error: 错误信息
 func (s *InteractionService) DeleteComment(userID, commentID string) error {
 	var comment model.Comment
 	if err := s.db.Where("id = ?", commentID).First(&comment).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("comment not found")
-		}
-		return fmt.Errorf("failed to find comment: %w", err)
+		log.Printf("[InteractionService.DeleteComment] Comment not found: %s", commentID)
+		return utils.New(utils.CodeCommentNotFound, "comment not found")
 	}
 
 	if comment.UserID != userID {
-		return errors.New("cannot delete other users' comments")
+		return utils.New(utils.CodeForbidden, "cannot delete other users' comments")
 	}
 
-	// 使用事务确保原子性
 	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {

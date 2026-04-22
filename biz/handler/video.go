@@ -14,12 +14,9 @@ import (
 )
 
 func init() {
-	// 确保视频上传目录存在
 	if err := os.MkdirAll("uploads/videos", 0755); err != nil {
-		// 在init中无法处理错误，但会在首次上传时处理
 	}
 	if err := os.MkdirAll("uploads/videos/covers", 0755); err != nil {
-		// 在init中无法处理错误，但会在首次上传时处理
 	}
 }
 
@@ -34,7 +31,7 @@ func NewVideoHandler(videoService *service.VideoService) *VideoHandler {
 func (h *VideoHandler) PublishVideo(ctx context.Context, c *app.RequestContext) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "unauthorized")
+		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
 		return
 	}
 
@@ -43,30 +40,30 @@ func (h *VideoHandler) PublishVideo(ctx context.Context, c *app.RequestContext) 
 
 	file, err := c.FormFile("data")
 	if err != nil {
-		utils.Error(c, -1, "failed to get video file")
+		utils.Error(c, utils.CodeFileReadError, "failed to get video file")
 		return
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".mp4" && ext != ".mov" && ext != ".avi" {
-		utils.Error(c, -1, "invalid video format")
+		utils.Error(c, utils.CodeInvalidFileFormat, "invalid video format")
 		return
 	}
 
 	filename := userID + "_" + time.Now().Format("20060102150405") + ext
-	uploadPath := filepath.Join("uploads/videos", filename) // 本地文件用相对路径
+	uploadPath := filepath.Join("uploads/videos", filename)
 
 	if err := c.SaveUploadedFile(file, uploadPath); err != nil {
-		utils.Error(c, -1, "failed to save video file")
+		utils.Error(c, utils.CodeFileSaveError, "failed to save video file")
 		return
 	}
 
-	videoURL := "/uploads/videos/" + filename // 前端访问用绝对路径
+	videoURL := "/uploads/videos/" + filename
 	coverURL := "/uploads/videos/covers/" + strings.TrimSuffix(filename, ext) + ".jpg"
 
 	video, err := h.videoService.PublishVideo(userID, title, description, videoURL, coverURL)
 	if err != nil {
-		utils.Error(c, -1, "failed to publish video")
+		utils.Error(c, utils.CodeInternalError, "failed to publish video")
 		return
 	}
 
@@ -80,7 +77,7 @@ func (h *VideoHandler) PublishVideo(ctx context.Context, c *app.RequestContext) 
 func (h *VideoHandler) GetPublishList(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		utils.Error(c, -1, "user_id is required")
+		utils.Error(c, utils.CodeMissingParam, "user_id is required")
 		return
 	}
 
@@ -96,7 +93,7 @@ func (h *VideoHandler) GetPublishList(ctx context.Context, c *app.RequestContext
 
 	videos, total, err := h.videoService.GetPublishList(userID, pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, "failed to get video list")
+		utils.Error(c, utils.CodeDatabaseError, "failed to get video list")
 		return
 	}
 
@@ -117,7 +114,7 @@ func (h *VideoHandler) SearchVideo(ctx context.Context, c *app.RequestContext) {
 	}
 
 	if err := c.BindAndValidate(&req); err != nil {
-		utils.Error(c, -1, "invalid request parameters")
+		utils.Error(c, utils.CodeInvalidParam, "invalid request parameters")
 		return
 	}
 
@@ -130,7 +127,7 @@ func (h *VideoHandler) SearchVideo(ctx context.Context, c *app.RequestContext) {
 
 	videos, total, err := h.videoService.SearchVideo(req.Keywords, req.Username, req.FromDate, req.ToDate, req.PageNum, req.PageSize)
 	if err != nil {
-		utils.Error(c, -1, "failed to search videos")
+		utils.Error(c, utils.CodeDatabaseError, "failed to search videos")
 		return
 	}
 
@@ -153,11 +150,44 @@ func (h *VideoHandler) GetPopularVideos(ctx context.Context, c *app.RequestConte
 
 	videos, err := h.videoService.GetPopularVideos(pageNum, pageSize)
 	if err != nil {
-		utils.Error(c, -1, "failed to get popular videos")
+		utils.Error(c, utils.CodeDatabaseError, "failed to get popular videos")
 		return
 	}
 
 	utils.Success(c, map[string]interface{}{
 		"items": videos,
 	})
+}
+
+func (h *VideoHandler) ViewVideo(ctx context.Context, c *app.RequestContext) {
+	videoID := c.Param("id")
+	if videoID == "" {
+		utils.Error(c, utils.CodeMissingParam, "video_id is required")
+		return
+	}
+
+	if err := h.videoService.IncrementVisitCount(videoID); err != nil {
+		utils.Error(c, utils.CodeVideoNotFound, err.Error())
+		return
+	}
+
+	utils.Success(c, map[string]interface{}{
+		"message": "view recorded",
+	})
+}
+
+func (h *VideoHandler) GetVideoDetail(ctx context.Context, c *app.RequestContext) {
+	videoID := c.Param("id")
+	if videoID == "" {
+		utils.Error(c, utils.CodeMissingParam, "video_id is required")
+		return
+	}
+
+	video, err := h.videoService.GetVideoByID(videoID)
+	if err != nil {
+		utils.Error(c, utils.CodeVideoNotFound, err.Error())
+		return
+	}
+
+	utils.Success(c, video)
 }

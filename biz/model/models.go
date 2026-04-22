@@ -46,16 +46,16 @@ type Comment struct {
 
 type Follow struct {
 	ID         string       `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	FollowerID string       `gorm:"index;type:varchar(255)" json:"follower_id"`
-	FolloweeID string       `gorm:"index;type:varchar(255)" json:"followee_id"`
+	FollowerID string       `gorm:"uniqueIndex:idx_follow_user;type:varchar(255)" json:"follower_id"`
+	FolloweeID string       `gorm:"uniqueIndex:idx_follow_user;type:varchar(255)" json:"followee_id"`
 	CreatedAt  time.Time    `gorm:"autoCreateTime" json:"created_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
 type Like struct {
 	ID        string       `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID    string       `gorm:"index;type:varchar(255)" json:"user_id"`
-	VideoID   string       `gorm:"index;type:varchar(255)" json:"video_id"`
+	UserID    string       `gorm:"uniqueIndex:idx_like_user_video;type:varchar(255)" json:"user_id"`
+	VideoID   string       `gorm:"uniqueIndex:idx_like_user_video;type:varchar(255)" json:"video_id"`
 	CreatedAt time.Time    `gorm:"autoCreateTime" json:"created_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
@@ -81,8 +81,8 @@ type UploadTask struct {
 // UploadChunk 已上传的分片信息
 type UploadChunk struct {
 	ID         string       `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	TaskID     string       `gorm:"index;type:varchar(255)" json:"task_id"`
-	ChunkIndex int          `gorm:"type:int" json:"chunk_index"`
+	TaskID     string       `gorm:"uniqueIndex:idx_chunk_task_index;type:varchar(255)" json:"task_id"`
+	ChunkIndex int          `gorm:"uniqueIndex:idx_chunk_task_index" json:"chunk_index"`
 	ChunkSize  int64        `gorm:"type:bigint" json:"chunk_size"`
 	Checksum   string       `gorm:"type:varchar(64)" json:"checksum"`
 	CreatedAt  time.Time    `gorm:"autoCreateTime" json:"created_at"`
