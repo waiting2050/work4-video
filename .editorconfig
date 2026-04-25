@@ -1,0 +1,56 @@
+# EditorConfig 是用于统一编辑器配置的文件
+# 帮助团队在不同编辑器和 IDE 中保持一致的编码风格
+# 更多信息：https://editorconfig.org/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.go]
+indent_size = 8
+indent_style = tab
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{json,js,ts,jsx,tsx}]
+indent_size = 2
+
+[*.{html,css,scss,less}]
+indent_size = 2
+
+[*.{md,markdown}]
+indent_size = 2
+max_line_length = 80
+trim_trailing_whitespace = false
+
+[*.sh]
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+[*.bat]
+end_of_line = crlf
+
+[*.{txt,rst}]
+max_line_length = 80
+
+[Dockerfile]
+indent_size = 4
+
+[*.sql]
+indent_size = 4
+
+[go.mod]
+indent_size = 4
+
+[go.sum]
+indent_size = 4

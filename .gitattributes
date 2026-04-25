@@ -1,0 +1,42 @@
+# 定义 Git 属性
+# 用于处理不同操作系统的换行符、文本编码等
+
+# 默认行为：让 Git 自动处理
+* text=auto
+
+# 强制使用 LF 换行符的文件
+*.go text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+
+# 二进制文件（不应该转换换行符）
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.mp4 binary
+*.mov binary
+*.avi binary
