@@ -20,9 +20,8 @@ func NewInteractionHandler(InteractionService *service.InteractionService) *Inte
 }
 
 func (h *InteractionHandler) LikeAction(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -46,11 +45,7 @@ func (h *InteractionHandler) LikeAction(ctx context.Context, c *app.RequestConte
 	}
 
 	if err := h.interactionService.LikeAction(userID, videoID, actionType); err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -78,11 +73,7 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 
 	videos, total, err := h.interactionService.GetLikeList(userID, pageNum, pageSize)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeDatabaseError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -93,9 +84,8 @@ func (h *InteractionHandler) GetLikeList(ctx context.Context, c *app.RequestCont
 }
 
 func (h *InteractionHandler) PublishComment(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -114,11 +104,7 @@ func (h *InteractionHandler) PublishComment(ctx context.Context, c *app.RequestC
 
 	comment, err := h.interactionService.PublishComment(userID, videoID, content)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -147,13 +133,9 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 		pageSize = 10
 	}
 
-	comments, total, svcErr := h.interactionService.GetCommentList(videoID, pageNum, pageSize)
-	if svcErr != nil {
-		if appErr, ok := utils.IsAppError(svcErr); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeDatabaseError, svcErr.Error())
-		}
+	comments, total, err := h.interactionService.GetCommentList(videoID, pageNum, pageSize)
+	if err != nil {
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -164,9 +146,8 @@ func (h *InteractionHandler) GetCommentList(ctx context.Context, c *app.RequestC
 }
 
 func (h *InteractionHandler) DeleteComment(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -178,11 +159,7 @@ func (h *InteractionHandler) DeleteComment(ctx context.Context, c *app.RequestCo
 	}
 
 	if err := h.interactionService.DeleteComment(userID, commentID); err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 

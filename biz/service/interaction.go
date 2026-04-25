@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"log"
 
 	"video/biz/cache"
@@ -24,7 +23,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 	var video model.Video
 	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
 		log.Printf("[InteractionService.LikeAction] Video not found: %s", videoID)
-		return utils.New(utils.CodeVideoNotFound, "video not found")
+		return utils.New(utils.CodeVideoNotFound)
 	}
 
 	if actionType == 1 {
@@ -39,7 +38,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 		err := tx.Where("user_id = ? AND video_id = ?", userID, videoID).First(&existingLike).Error
 		if err == nil {
 			tx.Rollback()
-			return utils.New(utils.CodeAlreadyLiked, "already liked this video")
+			return utils.New(utils.CodeAlreadyLiked)
 		}
 
 		like := model.Like{
@@ -50,16 +49,16 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 
 		if err := tx.Create(&like).Error; err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to create like: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
-		if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error; err != nil {
+		if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("like_count", gorm.Expr("like_count + ?", 1)).Error; err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to update video like count: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		if err := tx.Commit().Error; err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		go func() {
@@ -87,21 +86,21 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 		result := tx.Where("user_id = ? AND video_id = ?", userID, videoID).Delete(&model.Like{})
 		if result.Error != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to delete like: %w", result.Error)
+			return utils.Wrap(result.Error, utils.CodeInternalError)
 		}
 
 		if result.RowsAffected == 0 {
 			tx.Rollback()
-			return utils.New(utils.CodeNotLiked, "like not found")
+			return utils.New(utils.CodeNotLiked)
 		}
 
-		if err := tx.Model(&model.Video{}).Where("id = ? AND like_count > 0", videoID).UpdateColumn("like_count", gorm.Expr("like_count - 1")).Error; err != nil {
+		if err := tx.Model(&model.Video{}).Where("id = ? AND like_count > 0", videoID).UpdateColumn("like_count", gorm.Expr("like_count - ?", 1)).Error; err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to update video like count: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		if err := tx.Commit().Error; err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		go func() {
@@ -120,7 +119,7 @@ func (s *InteractionService) LikeAction(userID, videoID string, actionType int) 
 		return nil
 	}
 
-	return utils.New(utils.CodeInvalidAction, "invalid action type")
+	return utils.New(utils.CodeInvalidAction)
 }
 
 func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) ([]model.Video, int64, error) {
@@ -136,7 +135,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 	if len(videoIDs) > 0 {
 		var videos []model.Video
 		if err := s.db.Where("id IN ?", videoIDs).Find(&videos).Error; err != nil {
-			return nil, 0, fmt.Errorf("failed to get videos: %w", err)
+			return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 		}
 		return videos, total, nil
 	}
@@ -146,7 +145,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 	offset := (pageNum - 1) * pageSize
 
 	if err := s.db.Model(&model.Like{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count likes: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if err := s.db.Where("user_id = ?", userID).
@@ -154,7 +153,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 		Offset(offset).
 		Limit(pageSize).
 		Find(&likes).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to get likes: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if len(likes) == 0 {
@@ -168,7 +167,7 @@ func (s *InteractionService) GetLikeList(userID string, pageNum, pageSize int) (
 
 	var videos []model.Video
 	if err := s.db.Where("id IN ?", videoIDs).Find(&videos).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to get videos: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	return videos, total, nil
@@ -178,7 +177,7 @@ func (s *InteractionService) PublishComment(userID, videoID, content string) (*m
 	var video model.Video
 	if err := s.db.Where("id = ?", videoID).First(&video).Error; err != nil {
 		log.Printf("[InteractionService.PublishComment] Video not found: %s", videoID)
-		return nil, utils.New(utils.CodeVideoNotFound, "video not found")
+		return nil, utils.New(utils.CodeVideoNotFound)
 	}
 
 	comment := model.Comment{
@@ -198,16 +197,16 @@ func (s *InteractionService) PublishComment(userID, videoID, content string) (*m
 
 	if err := tx.Create(&comment).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to create comment: %w", err)
+		return nil, utils.Wrap(err, utils.CodeInternalError)
 	}
 
-	if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
+	if err := tx.Model(&model.Video{}).Where("id = ?", videoID).UpdateColumn("comment_count", gorm.Expr("comment_count + ?", 1)).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to update video comment count: %w", err)
+		return nil, utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	return &comment, nil
@@ -220,7 +219,7 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 	offset := (pageNum - 1) * pageSize
 
 	if err := s.db.Model(&model.Comment{}).Where("video_id = ?", videoID).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count comments: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if err := s.db.Where("video_id = ?", videoID).
@@ -228,7 +227,7 @@ func (s *InteractionService) GetCommentList(videoID string, pageNum, pageSize in
 		Offset(offset).
 		Limit(pageSize).
 		Find(&comments).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to get comments: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	return comments, total, nil
@@ -238,11 +237,11 @@ func (s *InteractionService) DeleteComment(userID, commentID string) error {
 	var comment model.Comment
 	if err := s.db.Where("id = ?", commentID).First(&comment).Error; err != nil {
 		log.Printf("[InteractionService.DeleteComment] Comment not found: %s", commentID)
-		return utils.New(utils.CodeCommentNotFound, "comment not found")
+		return utils.New(utils.CodeCommentNotFound)
 	}
 
 	if comment.UserID != userID {
-		return utils.New(utils.CodeForbidden, "cannot delete other users' comments")
+		return utils.New(utils.CodeForbidden)
 	}
 
 	tx := s.db.Begin()
@@ -254,17 +253,18 @@ func (s *InteractionService) DeleteComment(userID, commentID string) error {
 
 	if err := tx.Delete(&comment).Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to delete comment: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
-	if err := tx.Model(&model.Video{}).Where("id = ? AND comment_count > 0", comment.VideoID).UpdateColumn("comment_count", gorm.Expr("comment_count - 1")).Error; err != nil {
+	if err := tx.Model(&model.Video{}).Where("id = ? AND comment_count > 0", comment.VideoID).UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to update video comment count: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
+	log.Printf("[InteractionService.DeleteComment] Successfully deleted comment: %s", commentID)
 	return nil
 }

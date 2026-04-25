@@ -39,11 +39,7 @@ func (h *UserHandler) Register(ctx context.Context, c *app.RequestContext) {
 
 	user, err := h.userService.Register(req.Username, req.Password)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -66,13 +62,9 @@ func (h *UserHandler) Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	user, accessToken, refreshToken, err := h.userService.Login(req.Username, req.Password)
+	user, accessToken, refreshToken, err := h.userService.Login(req.Username, req.Password, req.Code)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -80,11 +72,95 @@ func (h *UserHandler) Login(ctx context.Context, c *app.RequestContext) {
 	c.Header("Refresh-Token", refreshToken)
 
 	utils.Success(c, map[string]interface{}{
-		"id":         user.ID,
-		"username":   user.Username,
-		"avatar_url": user.AvatarURL,
-		"created_at": user.CreatedAt,
-		"updated_at": user.UpdatedAt,
+		"id":          user.ID,
+		"username":    user.Username,
+		"avatar_url":  user.AvatarURL,
+		"mfa_enabled": user.MFAEnabled,
+		"created_at":  user.CreatedAt,
+		"updated_at":  user.UpdatedAt,
+	})
+}
+
+func (h *UserHandler) GetMFAQRCode(ctx context.Context, c *app.RequestContext) {
+	userID, ok := utils.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	qrCodeBase64, err := h.userService.GenerateMFASecret(userID)
+	if err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	utils.Success(c, map[string]interface{}{
+		"qr_code": "data:image/png;base64," + qrCodeBase64,
+	})
+}
+
+func (h *UserHandler) BindMFA(ctx context.Context, c *app.RequestContext) {
+	userID, ok := utils.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Code string `form:"code" json:"code" binding:"required"`
+	}
+
+	if err := c.BindAndValidate(&req); err != nil {
+		utils.Error(c, utils.CodeMissingParam, "MFA code is required")
+		return
+	}
+
+	if err := h.userService.EnableMFA(userID, req.Code); err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	utils.Success(c, map[string]interface{}{
+		"message": "MFA enabled successfully",
+	})
+}
+
+func (h *UserHandler) DisableMFA(ctx context.Context, c *app.RequestContext) {
+	userID, ok := utils.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.userService.DisableMFA(userID); err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	utils.Success(c, map[string]interface{}{
+		"message": "MFA disabled successfully",
+	})
+}
+
+func (h *UserHandler) ValidateMFACode(ctx context.Context, c *app.RequestContext) {
+	userID, ok := utils.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Code string `form:"code" json:"code" binding:"required"`
+	}
+
+	if err := c.BindAndValidate(&req); err != nil {
+		utils.Error(c, utils.CodeMissingParam, "MFA code is required")
+		return
+	}
+
+	if err := h.userService.ValidateMFACode(userID, req.Code); err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	utils.Success(c, map[string]interface{}{
+		"message": "MFA code validated successfully",
 	})
 }
 
@@ -97,27 +173,23 @@ func (h *UserHandler) GetUserInfo(ctx context.Context, c *app.RequestContext) {
 
 	user, err := h.userService.GetUserInfo(userID)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
 	utils.Success(c, map[string]interface{}{
-		"id":         user.ID,
-		"username":   user.Username,
-		"avatar_url": user.AvatarURL,
-		"created_at": user.CreatedAt,
-		"updated_at": user.UpdatedAt,
+		"id":          user.ID,
+		"username":    user.Username,
+		"avatar_url":  user.AvatarURL,
+		"mfa_enabled": user.MFAEnabled,
+		"created_at":  user.CreatedAt,
+		"updated_at":  user.UpdatedAt,
 	})
 }
 
 func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -155,19 +227,16 @@ func (h *UserHandler) UploadAvatar(ctx context.Context, c *app.RequestContext) {
 
 	user, err := h.userService.UpdateAvatar(userID, avatarURL)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
 	utils.Success(c, map[string]interface{}{
-		"id":         user.ID,
-		"username":   user.Username,
-		"avatar_url": user.AvatarURL,
-		"created_at": user.CreatedAt,
-		"updated_at": user.UpdatedAt,
+		"id":          user.ID,
+		"username":    user.Username,
+		"avatar_url":  user.AvatarURL,
+		"mfa_enabled": user.MFAEnabled,
+		"created_at":  user.CreatedAt,
+		"updated_at":  user.UpdatedAt,
 	})
 }

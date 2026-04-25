@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -54,11 +53,11 @@ type MergeChunksRequest struct {
 
 func (s *UploadService) InitUpload(userID string, req *InitUploadRequest) (map[string]interface{}, error) {
 	if req.FileSize <= 0 || req.ChunkSize <= 0 || req.TotalChunks <= 0 {
-		return nil, utils.New(utils.CodeInvalidParam, "invalid upload parameters")
+		return nil, utils.New(utils.CodeInvalidParam)
 	}
 
 	if req.ChunkSize > 10*1024*1024 {
-		return nil, utils.New(utils.CodeInvalidParam, "chunk size too large, maximum is 10MB")
+		return nil, utils.New(utils.CodeInvalidParam)
 	}
 
 	expectedChunks := int(req.FileSize + int64(req.ChunkSize) - 1) / req.ChunkSize
@@ -72,7 +71,7 @@ func (s *UploadService) InitUpload(userID string, req *InitUploadRequest) (map[s
 		FileName:       req.FileName,
 		FileSize:       req.FileSize,
 		ChunkSize:      req.ChunkSize,
-		TotalChunks:    req.TotalChunks,
+		TotalChunks:   req.TotalChunks,
 		UploadedChunks: 0,
 		Status:         "pending",
 		Title:          req.Title,
@@ -81,13 +80,13 @@ func (s *UploadService) InitUpload(userID string, req *InitUploadRequest) (map[s
 
 	if err := s.db.Create(&task).Error; err != nil {
 		log.Printf("[InitUpload] Failed to create task: %v", err)
-		return nil, fmt.Errorf("failed to create upload task: %w", err)
+		return nil, utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	taskDir := filepath.Join(UploadDir, task.ID)
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		log.Printf("[InitUpload] Failed to create task directory: %v", err)
-		return nil, fmt.Errorf("failed to create task directory: %w", err)
+		return nil, utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	log.Printf("[InitUpload] Successfully created upload task: %s for user %s", task.ID, userID)
@@ -103,23 +102,23 @@ func (s *UploadService) UploadChunk(userID string, req *UploadChunkRequest, chun
 	var task model.UploadTask
 	if err := s.db.Where("id = ? AND user_id = ?", req.TaskID, userID).First(&task).Error; err != nil {
 		log.Printf("[UploadService.UploadChunk] Upload task not found: %s", req.TaskID)
-		return utils.New(utils.CodeTaskNotFound, "upload task not found")
+		return utils.New(utils.CodeTaskNotFound)
 	}
 
 	if task.Status == "completed" {
-		return utils.New(utils.CodeAlreadyPublished, "upload task already completed")
+		return utils.New(utils.CodeAlreadyPublished)
 	}
 
 	if task.Status == "cancelled" {
-		return utils.New(utils.CodeInvalidAction, "upload task was cancelled")
+		return utils.New(utils.CodeInvalidAction)
 	}
 
 	if req.ChunkIndex < 0 || req.ChunkIndex >= task.TotalChunks {
-		return utils.New(utils.CodeInvalidParam, "invalid chunk index")
+		return utils.New(utils.CodeInvalidParam)
 	}
 
 	if int64(len(chunkData)) > int64(task.ChunkSize)*2 {
-		return utils.New(utils.CodeFileTooLarge, "chunk data exceeds expected size")
+		return utils.New(utils.CodeFileTooLarge)
 	}
 
 	hash := sha256.Sum256(chunkData)
@@ -160,24 +159,24 @@ func (s *UploadService) UploadChunk(userID string, req *UploadChunkRequest, chun
 
 	if err := tx.Create(&chunk).Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to create chunk record: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	chunkPath := filepath.Join(UploadDir, req.TaskID, fmt.Sprintf("chunk_%d", req.ChunkIndex))
 	if err := os.WriteFile(chunkPath, chunkData, 0644); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to save chunk file: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Model(&model.UploadTask{}).
 		Where("id = ?", req.TaskID).
-		UpdateColumn("uploaded_chunks", gorm.Expr("uploaded_chunks + 1")).Error; err != nil {
+		UpdateColumn("uploaded_chunks", gorm.Expr("uploaded_chunks + ?", 1)).Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to update uploaded chunks count: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	log.Printf("[UploadChunk] Successfully uploaded chunk %d for task %s", req.ChunkIndex, req.TaskID)
@@ -188,12 +187,12 @@ func (s *UploadService) GetUploadStatus(userID, taskID string) (map[string]inter
 	var task model.UploadTask
 	if err := s.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
 		log.Printf("[UploadService.GetUploadStatus] Upload task not found: %s", taskID)
-		return nil, utils.New(utils.CodeTaskNotFound, "upload task not found")
+		return nil, utils.New(utils.CodeTaskNotFound)
 	}
 
 	var chunks []model.UploadChunk
 	if err := s.db.Where("task_id = ?", taskID).Find(&chunks).Error; err != nil {
-		return nil, fmt.Errorf("failed to get chunks: %w", err)
+		return nil, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	uploadedIndexes := make([]int, 0, len(chunks))
@@ -222,24 +221,24 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 	var task model.UploadTask
 	if err := s.db.Where("id = ? AND user_id = ?", req.TaskID, userID).First(&task).Error; err != nil {
 		log.Printf("[UploadService.MergeChunks] Upload task not found: %s", req.TaskID)
-		return "", "", "", utils.New(utils.CodeTaskNotFound, "upload task not found")
+		return "", "", "", utils.New(utils.CodeTaskNotFound)
 	}
 
 	if task.Status == "completed" {
-		return "", "", "", utils.New(utils.CodeAlreadyPublished, "video already published")
+		return "", "", "", utils.New(utils.CodeAlreadyPublished)
 	}
 
 	if task.Status == "cancelled" {
-		return "", "", "", utils.New(utils.CodeInvalidAction, "upload task was cancelled")
+		return "", "", "", utils.New(utils.CodeInvalidAction)
 	}
 
 	if task.UploadedChunks < task.TotalChunks {
-		return "", "", "", utils.New(utils.CodeUploadIncomplete, "upload not complete, chunks missing")
+		return "", "", "", utils.New(utils.CodeUploadIncomplete)
 	}
 
 	var chunks []model.UploadChunk
 	if err := s.db.Where("task_id = ?", req.TaskID).Order("chunk_index").Find(&chunks).Error; err != nil {
-		return "", "", "", fmt.Errorf("failed to get chunks: %w", err)
+		return "", "", "", utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	mergedFilePath := filepath.Join("uploads/videos", task.FileName)
@@ -254,7 +253,7 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 
 	mergedFile, err := os.Create(mergedFilePath)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to create merged file: %w", err)
+		return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 	fileCreated = true
 
@@ -263,12 +262,12 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 		chunkData, err := os.ReadFile(chunkPath)
 		if err != nil {
 			cleanupFunc()
-			return "", "", "", fmt.Errorf("failed to read chunk %d: %w", chunk.ChunkIndex, err)
+			return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		if _, err := mergedFile.Write(chunkData); err != nil {
 			cleanupFunc()
-			return "", "", "", fmt.Errorf("failed to write chunk %d to merged file: %w", chunk.ChunkIndex, err)
+			return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 		}
 	}
 
@@ -278,12 +277,12 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 	fileInfo, err := os.Stat(mergedFilePath)
 	if err != nil {
 		cleanupFunc()
-		return "", "", "", fmt.Errorf("failed to get merged file info: %w", err)
+		return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if fileInfo.Size() != task.FileSize {
 		cleanupFunc()
-		return "", "", "", utils.New(utils.CodeMergeFailed, "merged file size mismatch")
+		return "", "", "", utils.New(utils.CodeMergeFailed)
 	}
 
 	tx := s.db.Begin()
@@ -296,12 +295,12 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 	if err := tx.Model(&model.UploadTask{}).
 		Where("id = ?", req.TaskID).
 		Updates(map[string]interface{}{
-			"status":  "completed",
+			"status":   "completed",
 			"file_url": mergedFilePath,
 		}).Error; err != nil {
 		cleanupFunc()
 		tx.Rollback()
-		return "", "", "", fmt.Errorf("failed to update task status: %w", err)
+		return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	videoURL := "/uploads/videos/" + task.FileName
@@ -309,7 +308,7 @@ func (s *UploadService) MergeChunks(userID string, req *MergeChunksRequest) (str
 
 	if err := tx.Commit().Error; err != nil {
 		cleanupFunc()
-		return "", "", "", fmt.Errorf("failed to commit transaction: %w", err)
+		return "", "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	s.cleanupChunks(req.TaskID)
@@ -322,11 +321,11 @@ func (s *UploadService) CancelUpload(userID, taskID string) error {
 	var task model.UploadTask
 	if err := s.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
 		log.Printf("[UploadService.CancelUpload] Upload task not found: %s", taskID)
-		return utils.New(utils.CodeTaskNotFound, "upload task not found")
+		return utils.New(utils.CodeTaskNotFound)
 	}
 
 	if task.Status == "completed" {
-		return utils.New(utils.CodeInvalidAction, "cannot cancel completed upload")
+		return utils.New(utils.CodeInvalidAction)
 	}
 
 	tx := s.db.Begin()
@@ -338,18 +337,18 @@ func (s *UploadService) CancelUpload(userID, taskID string) error {
 
 	if err := tx.Where("id = ?", taskID).Delete(&model.UploadChunk{}).Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to delete chunks: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Model(&model.UploadTask{}).
 		Where("id = ?", taskID).
 		Update("status", "cancelled").Error; err != nil {
 		tx.Rollback()
-		return fmt.Errorf("failed to update task status: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	s.cleanupChunks(taskID)
@@ -370,7 +369,7 @@ func (s *UploadService) CleanupStaleTasks() error {
 
 	var staleTasks []model.UploadTask
 	if err := s.db.Where("status = ? AND created_at < ?", "pending", expirationTime).Find(&staleTasks).Error; err != nil {
-		return fmt.Errorf("failed to find stale tasks: %w", err)
+		return utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	for _, task := range staleTasks {
@@ -390,41 +389,4 @@ func (s *UploadService) CleanupStaleTasks() error {
 	}
 
 	return nil
-}
-
-func (s *UploadService) GetUploadProgress(taskID, userID string) (map[string]interface{}, error) {
-	task, err := s.GetUploadStatus(userID, taskID)
-	if err != nil {
-		return nil, err
-	}
-
-	progress := float64(0)
-	if total, ok := task["total_chunks"].(int); ok && total > 0 {
-		uploaded, ok := task["uploaded_chunks"].(int)
-		if ok {
-			progress = float64(uploaded) / float64(total) * 100
-		}
-	}
-
-	task["progress"] = progress
-
-	return task, nil
-}
-
-func (s *UploadService) ReadChunkFromRequest(req *UploadChunkRequest, r io.Reader) ([]byte, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read chunk data: %w", err)
-	}
-
-	expectedSize := int64(len(data))
-	hash := sha256.Sum256(data)
-	checksum := hex.EncodeToString(hash[:])
-
-	if checksum != req.Checksum {
-		return nil, fmt.Errorf("checksum mismatch: expected %s, got %s", req.Checksum, checksum)
-	}
-
-	log.Printf("[ReadChunkFromRequest] Successfully read %d bytes with checksum %s", expectedSize, checksum)
-	return data, nil
 }
