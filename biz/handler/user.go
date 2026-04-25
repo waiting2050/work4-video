@@ -87,14 +87,15 @@ func (h *UserHandler) GetMFAQRCode(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	qrCodeBase64, err := h.userService.GenerateMFASecret(userID)
+	secret, qrCodeBase64, err := h.userService.GenerateMFASecret(userID)
 	if err != nil {
 		utils.HandleError(c, err)
 		return
 	}
 
 	utils.Success(c, map[string]interface{}{
-		"qr_code": "data:image/png;base64," + qrCodeBase64,
+		"secret": secret,
+		"qrcode": "data:image/png;base64," + qrCodeBase64,
 	})
 }
 
@@ -105,64 +106,24 @@ func (h *UserHandler) BindMFA(ctx context.Context, c *app.RequestContext) {
 	}
 
 	var req struct {
-		Code string `form:"code" json:"code" binding:"required"`
+		Code   string `form:"code" json:"code" binding:"required"`
+		Secret string `form:"secret" json:"secret" binding:"required"`
 	}
 
 	if err := c.BindAndValidate(&req); err != nil {
-		utils.Error(c, utils.CodeMissingParam, "MFA code is required")
+		utils.Error(c, utils.CodeMissingParam, "MFA code and secret are required")
 		return
 	}
 
-	if err := h.userService.EnableMFA(userID, req.Code); err != nil {
+	if err := h.userService.EnableMFA(userID, req.Code, req.Secret); err != nil {
 		utils.HandleError(c, err)
 		return
 	}
 
-	utils.Success(c, map[string]interface{}{
-		"message": "MFA enabled successfully",
-	})
+	utils.Success(c, nil)
 }
 
-func (h *UserHandler) DisableMFA(ctx context.Context, c *app.RequestContext) {
-	userID, ok := utils.GetUserID(c)
-	if !ok {
-		return
-	}
 
-	if err := h.userService.DisableMFA(userID); err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-
-	utils.Success(c, map[string]interface{}{
-		"message": "MFA disabled successfully",
-	})
-}
-
-func (h *UserHandler) ValidateMFACode(ctx context.Context, c *app.RequestContext) {
-	userID, ok := utils.GetUserID(c)
-	if !ok {
-		return
-	}
-
-	var req struct {
-		Code string `form:"code" json:"code" binding:"required"`
-	}
-
-	if err := c.BindAndValidate(&req); err != nil {
-		utils.Error(c, utils.CodeMissingParam, "MFA code is required")
-		return
-	}
-
-	if err := h.userService.ValidateMFACode(userID, req.Code); err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-
-	utils.Success(c, map[string]interface{}{
-		"message": "MFA code validated successfully",
-	})
-}
 
 func (h *UserHandler) GetUserInfo(ctx context.Context, c *app.RequestContext) {
 	userID := c.Query("user_id")

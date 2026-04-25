@@ -3,16 +3,12 @@ package service
 import (
 	"encoding/json"
 	"log"
-	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"video/biz/cache"
 	"video/biz/model"
 	"video/biz/utils"
 
-	"github.com/cloudwego/hertz/pkg/network"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -242,99 +238,24 @@ func (s *VideoService) GetVideoByID(videoID string) (*model.Video, error) {
 	return &video, nil
 }
 
-type StreamRange struct {
-	Start int64
-	End   int64
-	Size  int64
-}
+func (s *VideoService) GetVideoFeed(latestTime int64) ([]VideoWithUser, error) {
+	var videos []VideoWithUser
+	query := s.db.Table("videos").
+		Select("videos.*, users.username, users.avatar_url as user_avatar").
+		Joins("LEFT JOIN users ON videos.user_id = users.id")
 
-func (s *VideoService) ParseRangeHeader(rangeHeader string, fileSize int64) (*StreamRange, error) {
-	if rangeHeader == "" {
-		return &StreamRange{Start: 0, End: fileSize - 1, Size: fileSize}, nil
+	if latestTime > 0 {
+		feedTime := time.Unix(latestTime/1000, (latestTime%1000)*1e6)
+		query = query.Where("videos.created_at >= ?", feedTime)
 	}
 
-	if !strings.HasPrefix(rangeHeader, "bytes=") {
-		return nil, utils.New(utils.CodeInvalidParam)
+	if err := query.Order("videos.created_at DESC").
+		Limit(30).
+		Find(&videos).Error; err != nil {
+		log.Printf("[VideoService.GetVideoFeed] Failed to get videos: %v", err)
+		return nil, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
-	rangePart := strings.TrimPrefix(rangeHeader, "bytes=")
-	parts := strings.SplitN(rangePart, "-", 2)
-	
-	start, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		start = 0
-	}
-
-	var end int64
-	if parts[1] == "" {
-		end = fileSize - 1
-	} else {
-		end, err = strconv.ParseInt(parts[1], 10, 64)
-		if err != nil || end >= fileSize {
-			end = fileSize - 1
-		}
-	}
-
-	if start > end {
-		return nil, utils.New(utils.CodeInvalidParam)
-	}
-
-	return &StreamRange{
-		Start: start,
-		End:   end,
-		Size:  end - start + 1,
-	}, nil
-}
-
-func (s *VideoService) GetVideoFile(video *model.Video) (*os.File, int64, error) {
-	filePath := "." + video.VideoURL
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Printf("[VideoService.GetVideoFile] Failed to open video file: %v", err)
-		return nil, 0, utils.New(utils.CodeVideoNotFound)
-	}
-
-	stat, err := file.Stat()
-	if err != nil {
-		file.Close()
-		log.Printf("[VideoService.GetVideoFile] Failed to get file stats: %v", err)
-		return nil, 0, utils.Wrap(err, utils.CodeInternalError)
-	}
-
-	return file, stat.Size(), nil
-}
-
-func (s *VideoService) StreamVideoData(file *os.File, streamRange *StreamRange, writer network.Writer) error {
-	buffer := make([]byte, 32*1024)
-	_, err := file.Seek(streamRange.Start, 0)
-	if err != nil {
-		log.Printf("[VideoService.StreamVideoData] Failed to seek file: %v", err)
-		return utils.Wrap(err, utils.CodeInternalError)
-	}
-
-	remaining := streamRange.Size
-	for remaining > 0 {
-		readSize := int64(len(buffer))
-		if remaining < readSize {
-			readSize = remaining
-		}
-
-		n, err := file.Read(buffer[:readSize])
-		if err != nil && err.Error() != "EOF" {
-			log.Printf("[VideoService.StreamVideoData] Failed to read file: %v", err)
-			return utils.Wrap(err, utils.CodeInternalError)
-		}
-		if n == 0 {
-			break
-		}
-
-		if _, err := writer.WriteBinary(buffer[:n]); err != nil {
-			log.Printf("[VideoService.StreamVideoData] Failed to write data: %v", err)
-			return utils.Wrap(err, utils.CodeInternalError)
-		}
-
-		remaining -= int64(n)
-	}
-
-	return nil
+	log.Printf("[VideoService.GetVideoFeed] Successfully got %d videos", len(videos))
+	return videos, nil
 }

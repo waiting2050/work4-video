@@ -46,22 +46,25 @@ func customizedRegister(r *server.Hertz) {
 		userGroup.POST("/login", userHandler.Login)
 		userGroup.GET("/info", userHandler.GetUserInfo)
 		userGroup.PUT("/avatar/upload", authMiddleware, userHandler.UploadAvatar)
-		userGroup.GET("/mfa/qrcode", authMiddleware, userHandler.GetMFAQRCode)
-		userGroup.POST("/mfa/bind", authMiddleware, userHandler.BindMFA)
-		userGroup.POST("/mfa/disable", authMiddleware, userHandler.DisableMFA)
-		userGroup.POST("/mfa/verify", authMiddleware, userHandler.ValidateMFACode)
+	}
+
+	// 认证模块
+	authGroup := r.Group("/auth")
+	{
+		authGroup.GET("/mfa/qrcode", authMiddleware, userHandler.GetMFAQRCode)
+		authGroup.POST("/mfa/bind", authMiddleware, userHandler.BindMFA)
 	}
 
 	// 视频模块
 	videoGroup := r.Group("/video")
 	{
+		videoGroup.GET("/feed/", videoHandler.GetVideoFeed)
 		videoGroup.POST("/publish", authMiddleware, videoHandler.PublishVideo)
 		videoGroup.GET("/list", videoHandler.GetPublishList)
 		videoGroup.POST("/search", videoHandler.SearchVideo)
 		videoGroup.GET("/popular", videoHandler.GetPopularVideos)
 		videoGroup.POST("/view/:id", videoHandler.ViewVideo)
 		videoGroup.GET("/detail/:id", videoHandler.GetVideoDetail)
-		videoGroup.GET("/stream/:id", videoHandler.StreamVideo)
 	}
 
 	// 上传策略模块（公开，用于前端决策）

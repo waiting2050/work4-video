@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"mime"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -192,51 +191,25 @@ func (h *VideoHandler) GetVideoDetail(ctx context.Context, c *app.RequestContext
 	utils.Success(c, video)
 }
 
-func (h *VideoHandler) StreamVideo(ctx context.Context, c *app.RequestContext) {
-	videoID := c.Param("id")
-	if videoID == "" {
-		utils.Error(c, utils.CodeMissingParam, "video_id is required")
-		return
+func (h *VideoHandler) GetVideoFeed(ctx context.Context, c *app.RequestContext) {
+	latestTimeStr := c.Query("latest_time")
+	var latestTime int64
+
+	if latestTimeStr != "" {
+		var err error
+		latestTime, err = strconv.ParseInt(latestTimeStr, 10, 64)
+		if err != nil {
+			latestTime = 0
+		}
 	}
 
-	video, err := h.videoService.GetVideoByID(videoID)
+	videos, err := h.videoService.GetVideoFeed(latestTime)
 	if err != nil {
 		utils.HandleError(c, err)
 		return
 	}
 
-	file, fileSize, err := h.videoService.GetVideoFile(video)
-	if err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-	defer file.Close()
-
-	rangeHeader := string(c.GetHeader("Range"))
-	streamRange, err := h.videoService.ParseRangeHeader(rangeHeader, fileSize)
-	if err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-
-	ext := filepath.Ext(video.VideoURL)
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		contentType = "video/mp4"
-	}
-
-	c.Status(206)
-	c.Header("Content-Type", contentType)
-	c.Header("Content-Length", strconv.FormatInt(streamRange.Size, 10))
-	c.Header("Content-Range", "bytes "+strconv.FormatInt(streamRange.Start, 10)+"-"+strconv.FormatInt(streamRange.End, 10)+"/"+strconv.FormatInt(fileSize, 10))
-	c.Header("Accept-Ranges", "bytes")
-	c.Header("Cache-Control", "no-cache")
-
-	if err := h.videoService.StreamVideoData(file, streamRange, c.GetWriter()); err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-
-	if err := h.videoService.IncrementVisitCount(videoID); err != nil {
-	}
+	utils.Success(c, map[string]interface{}{
+		"items": videos,
+	})
 }

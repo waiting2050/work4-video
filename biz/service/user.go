@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"video/biz/auth"
-	"video/biz/cache"
 	"video/biz/model"
 	"video/biz/utils"
 
@@ -121,15 +120,15 @@ func (s *UserService) UpdateAvatar(userID, avatarURL string) (*model.User, error
 	return &user, nil
 }
 
-func (s *UserService) GenerateMFASecret(userID string) (string, error) {
+func (s *UserService) GenerateMFASecret(userID string) (string, string, error) {
 	user, err := s.getUserByID(userID)
 	if err != nil {
 		log.Printf("[UserService.GenerateMFASecret] User not found: %s", userID)
-		return "", utils.New(utils.CodeUserNotFound)
+		return "", "", utils.New(utils.CodeUserNotFound)
 	}
 
 	if user.MFAEnabled {
-		return "", utils.New(utils.CodeInvalidAction)
+		return "", "", utils.New(utils.CodeInvalidAction)
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -139,7 +138,7 @@ func (s *UserService) GenerateMFASecret(userID string) (string, error) {
 	})
 	if err != nil {
 		log.Printf("[UserService.GenerateMFASecret] Failed to generate MFA secret: %v", err)
-		return "", utils.Wrap(err, utils.CodeInternalError)
+		return "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 
 	secretBase32 := key.Secret()
@@ -148,26 +147,15 @@ func (s *UserService) GenerateMFASecret(userID string) (string, error) {
 	qrPNG, err := qrcode.Encode(otpURL, qrcode.Medium, 256)
 	if err != nil {
 		log.Printf("[UserService.GenerateMFASecret] Failed to generate QR code: %v", err)
-		return "", utils.Wrap(err, utils.CodeInternalError)
+		return "", "", utils.Wrap(err, utils.CodeInternalError)
 	}
 	qrCodeBase64 := base64.StdEncoding.EncodeToString(qrPNG)
 
-	if err := cache.SetMFAPending(userID, secretBase32); err != nil {
-		if cache.IsRedisDown(err) {
-			log.Printf("[UserService.GenerateMFASecret] Redis unavailable, storing in DB temporarily: %v", err)
-			if err := s.db.Model(&model.User{}).Where("id = ?", userID).Update("mfa_secret", secretBase32).Error; err != nil {
-				return "", utils.Wrap(err, utils.CodeInternalError)
-			}
-		} else {
-			return "", utils.Wrap(err, utils.CodeInternalError)
-		}
-	}
-
 	log.Printf("[UserService.GenerateMFASecret] Successfully generated MFA secret for user: %s", userID)
-	return qrCodeBase64, nil
+	return secretBase32, qrCodeBase64, nil
 }
 
-func (s *UserService) EnableMFA(userID, code string) error {
+func (s *UserService) EnableMFA(userID, code, secret string) error {
 	user, err := s.getUserByID(userID)
 	if err != nil {
 		log.Printf("[UserService.EnableMFA] User not found: %s", userID)
@@ -176,23 +164,6 @@ func (s *UserService) EnableMFA(userID, code string) error {
 
 	if user.MFAEnabled {
 		return utils.New(utils.CodeInvalidAction)
-	}
-
-	secret, err := cache.GetMFAPending(userID)
-	if err != nil {
-		if cache.IsCacheMiss(err) {
-			log.Printf("[UserService.EnableMFA] MFA pending secret not found or expired: %s", userID)
-			return utils.New(utils.CodeMFANotEnabled)
-		}
-		if cache.IsRedisDown(err) {
-			log.Printf("[UserService.EnableMFA] Redis unavailable, using DB secret: %v", err)
-			secret = user.MFASecret
-			if secret == "" {
-				return utils.New(utils.CodeMFANotEnabled)
-			}
-		} else {
-			return utils.Wrap(err, utils.CodeInternalError)
-		}
 	}
 
 	if !s.validateTOTP(code, secret) {
@@ -207,33 +178,7 @@ func (s *UserService) EnableMFA(userID, code string) error {
 		return utils.Wrap(err, utils.CodeInternalError)
 	}
 
-	cache.DeleteMFAPending(userID)
-
 	log.Printf("[UserService.EnableMFA] Successfully enabled MFA for user: %s", userID)
-	return nil
-}
-
-func (s *UserService) DisableMFA(userID string) error {
-	user, err := s.getUserByID(userID)
-	if err != nil {
-		log.Printf("[UserService.DisableMFA] User not found: %s", userID)
-		return utils.New(utils.CodeUserNotFound)
-	}
-
-	if !user.MFAEnabled {
-		return utils.New(utils.CodeMFANotEnabled)
-	}
-
-	if err := s.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"mfa_secret": "",
-		"mfa_enabled": false,
-	}).Error; err != nil {
-		return utils.Wrap(err, utils.CodeInternalError)
-	}
-
-	cache.DeleteMFAPending(userID)
-
-	log.Printf("[UserService.DisableMFA] Successfully disabled MFA for user: %s", userID)
 	return nil
 }
 
