@@ -20,9 +20,8 @@ func NewSocialHandler(socialService *service.SocialService) *SocialHandler {
 }
 
 func (h *SocialHandler) FollowAction(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -46,11 +45,7 @@ func (h *SocialHandler) FollowAction(ctx context.Context, c *app.RequestContext)
 	}
 
 	if err := h.socialService.FollowAction(userID, toUserID, actionType); err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -78,11 +73,7 @@ func (h *SocialHandler) GetFollowList(ctx context.Context, c *app.RequestContext
 
 	users, total, err := h.socialService.GetFollowList(userID, pageNum, pageSize)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeDatabaseError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -111,11 +102,7 @@ func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestConte
 
 	users, total, err := h.socialService.GetFollowerList(userID, pageNum, pageSize)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeDatabaseError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -126,9 +113,8 @@ func (h *SocialHandler) GetFollowerList(ctx context.Context, c *app.RequestConte
 }
 
 func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -144,11 +130,7 @@ func (h *SocialHandler) GetFriendList(ctx context.Context, c *app.RequestContext
 
 	users, total, err := h.socialService.GetFriendList(userID, pageNum, pageSize)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeDatabaseError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 

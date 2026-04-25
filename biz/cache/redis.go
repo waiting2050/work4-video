@@ -207,6 +207,43 @@ func GetUserLikeIDsFromZSet(userID string, pageNum, pageSize int) ([]string, int
 	return videoIDs, total, nil
 }
 
+const MFAPendingPrefix = "mfa:pending:"
+const MFAPendingTTL = 5 * time.Minute
+
+func SetMFAPending(userID, secret string) error {
+	if RedisClient == nil {
+		return ErrRedisDown
+	}
+	ctx := context.Background()
+	key := MFAPendingPrefix + userID
+	return RedisClient.Set(ctx, key, secret, MFAPendingTTL).Err()
+}
+
+func GetMFAPending(userID string) (string, error) {
+	if RedisClient == nil {
+		return "", ErrRedisDown
+	}
+	ctx := context.Background()
+	key := MFAPendingPrefix + userID
+	secret, err := RedisClient.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", ErrCacheMiss
+	}
+	if err != nil {
+		return "", fmt.Errorf("redis get error: %w", err)
+	}
+	return secret, nil
+}
+
+func DeleteMFAPending(userID string) error {
+	if RedisClient == nil {
+		return ErrRedisDown
+	}
+	ctx := context.Background()
+	key := MFAPendingPrefix + userID
+	return RedisClient.Del(ctx, key).Err()
+}
+
 func CloseRedis() {
 	if RedisClient != nil {
 		RedisClient.Close()

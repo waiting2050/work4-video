@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"log"
 
 	"video/biz/model"
@@ -22,13 +21,13 @@ func NewSocialService(db *gorm.DB) *SocialService {
 func (s *SocialService) FollowAction(userID, toUserID string, actionType int) error {
 	if userID == toUserID {
 		log.Printf("[SocialService.FollowAction] Cannot follow yourself: %s", userID)
-		return utils.New(utils.CodeInvalidAction, "cannot follow yourself")
+		return utils.New(utils.CodeInvalidAction)
 	}
 
 	var targetUser model.User
 	if err := s.db.Where("id = ?", toUserID).First(&targetUser).Error; err != nil {
 		log.Printf("[SocialService.FollowAction] Target user not found: %s", toUserID)
-		return utils.New(utils.CodeUserNotFound, "target user not found")
+		return utils.New(utils.CodeUserNotFound)
 	}
 
 	if actionType == 0 {
@@ -45,7 +44,7 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 		if err == nil {
 			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Already following user: %s -> %s", userID, toUserID)
-			return utils.New(utils.CodeAlreadyFollowed, "already following this user")
+			return utils.New(utils.CodeAlreadyFollowed)
 		}
 
 		follow := model.Follow{
@@ -57,12 +56,12 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 		if err := tx.Create(&follow).Error; err != nil {
 			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Failed to create follow: %v", err)
-			return fmt.Errorf("failed to create follow: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		if err := tx.Commit().Error; err != nil {
 			log.Printf("[SocialService.FollowAction] Failed to commit transaction: %v", err)
-			return fmt.Errorf("failed to commit transaction: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		log.Printf("[SocialService.FollowAction] Successfully followed user: %s -> %s", userID, toUserID)
@@ -79,19 +78,19 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 		if result.Error != nil {
 			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Failed to delete follow: %v", result.Error)
-			return fmt.Errorf("failed to delete follow: %w", result.Error)
+			return utils.Wrap(result.Error, utils.CodeInternalError)
 		}
 
 		if result.RowsAffected == 0 {
 			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Follow relationship not found: %s -> %s", userID, toUserID)
-			return utils.New(utils.CodeNotFollowed, "follow relationship not found")
+			return utils.New(utils.CodeNotFollowed)
 		}
 
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
 			log.Printf("[SocialService.FollowAction] Failed to commit transaction: %v", err)
-			return fmt.Errorf("failed to commit transaction: %w", err)
+			return utils.Wrap(err, utils.CodeInternalError)
 		}
 
 		log.Printf("[SocialService.FollowAction] Successfully unfollowed user: %s -> %s", userID, toUserID)
@@ -99,7 +98,7 @@ func (s *SocialService) FollowAction(userID, toUserID string, actionType int) er
 	}
 
 	log.Printf("[SocialService.FollowAction] Invalid action type: %d", actionType)
-	return utils.New(utils.CodeInvalidAction, "invalid action type")
+	return utils.New(utils.CodeInvalidAction)
 }
 
 func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]model.User, int64, error) {
@@ -110,7 +109,7 @@ func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]m
 
 	if err := s.db.Model(&model.Follow{}).Where("follower_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("[SocialService.GetFollowList] Failed to count follows: %v", err)
-		return nil, 0, fmt.Errorf("failed to count follows: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if err := s.db.Where("follower_id = ?", userID).
@@ -119,7 +118,7 @@ func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]m
 		Limit(pageSize).
 		Find(&follows).Error; err != nil {
 		log.Printf("[SocialService.GetFollowList] Failed to get follows: %v", err)
-		return nil, 0, fmt.Errorf("failed to get follows: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	var followeeIDs []string
@@ -131,7 +130,7 @@ func (s *SocialService) GetFollowList(userID string, pageNum, pageSize int) ([]m
 	if len(followeeIDs) > 0 {
 		if err := s.db.Where("id IN ?", followeeIDs).Find(&users).Error; err != nil {
 			log.Printf("[SocialService.GetFollowList] Failed to get users: %v", err)
-			return nil, 0, fmt.Errorf("failed to get users: %w", err)
+			return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 		}
 	}
 
@@ -147,7 +146,7 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 
 	if err := s.db.Model(&model.Follow{}).Where("followee_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("[SocialService.GetFollowerList] Failed to count followers: %v", err)
-		return nil, 0, fmt.Errorf("failed to count followers: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if err := s.db.Where("followee_id = ?", userID).
@@ -155,8 +154,8 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 		Offset(offset).
 		Limit(pageSize).
 		Find(&follows).Error; err != nil {
-		log.Printf("[SocialService.GetFollowerList] Failed to get followers: %v", err)
-		return nil, 0, fmt.Errorf("failed to get followers: %w", err)
+		log.Printf("[SocialService.GetFollowerList] Failed to get follows: %v", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	var followerIDs []string
@@ -168,7 +167,7 @@ func (s *SocialService) GetFollowerList(userID string, pageNum, pageSize int) ([
 	if len(followerIDs) > 0 {
 		if err := s.db.Where("id IN ?", followerIDs).Find(&users).Error; err != nil {
 			log.Printf("[SocialService.GetFollowerList] Failed to get users: %v", err)
-			return nil, 0, fmt.Errorf("failed to get users: %w", err)
+			return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 		}
 	}
 
@@ -202,7 +201,7 @@ func (s *SocialService) GetFriendList(userID string, pageNum, pageSize int) ([]m
 		Where("EXISTS (?)", mutualSubQuery).
 		Count(&total).Error; err != nil {
 		log.Printf("[SocialService.GetFriendList] Failed to count friends: %v", err)
-		return nil, 0, fmt.Errorf("failed to count friends: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	if err := s.db.Table("follows f1").
@@ -212,14 +211,14 @@ func (s *SocialService) GetFriendList(userID string, pageNum, pageSize int) ([]m
 		Offset(offset).Limit(pageSize).
 		Pluck("f1.follower_id", &friendIDs).Error; err != nil {
 		log.Printf("[SocialService.GetFriendList] Failed to get friend IDs: %v", err)
-		return nil, 0, fmt.Errorf("failed to get friend IDs: %w", err)
+		return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 	}
 
 	var users []model.User
 	if len(friendIDs) > 0 {
 		if err := s.db.Where("id IN ?", friendIDs).Find(&users).Error; err != nil {
 			log.Printf("[SocialService.GetFriendList] Failed to get users: %v", err)
-			return nil, 0, fmt.Errorf("failed to get users: %w", err)
+			return nil, 0, utils.Wrap(err, utils.CodeDatabaseError)
 		}
 	}
 

@@ -18,8 +18,14 @@ func (e *AppError) Is(target error) bool {
 	return false
 }
 
-func New(code int, message string) error {
-	return &AppError{Code: code, Message: message}
+func New(code int, message ...string) error {
+	msg := ""
+	if len(message) > 0 {
+		msg = message[0]
+	} else {
+		msg = GetMsg(code)
+	}
+	return &AppError{Code: code, Message: msg}
 }
 
 func IsAppError(err error) (*AppError, bool) {
@@ -30,19 +36,20 @@ func IsAppError(err error) (*AppError, bool) {
 	return nil, false
 }
 
-func AsAppError(err error) *AppError {
-	if appErr, ok := IsAppError(err); ok {
-		return appErr
-	}
-	return nil
-}
 
-func Wrap(err error, code int, message string) error {
+
+func Wrap(err error, code int, message ...string) error {
 	if err == nil {
 		return nil
 	}
+	msg := ""
+	if len(message) > 0 {
+		msg = message[0]
+	} else {
+		msg = GetMsg(code)
+	}
 	return &AppError{
 		Code:    code,
-		Message: message,
+		Message: msg,
 	}
 }

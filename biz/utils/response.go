@@ -35,6 +35,25 @@ func Error(c *app.RequestContext, code int, msg string) {
 	})
 }
 
+// HandleError 统一处理请求错误
+func HandleError(c *app.RequestContext, err error) {
+	if appErr, ok := IsAppError(err); ok {
+		Error(c, appErr.Code, appErr.Message)
+	} else {
+		Error(c, CodeInternalError, err.Error())
+	}
+}
+
+// GetUserID 安全获取并验证user_id
+func GetUserID(c *app.RequestContext) (string, bool) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		Error(c, CodeUnauthorized, GetMsg(CodeUnauthorized))
+		return "", false
+	}
+	return userID, true
+}
+
 // ParseInt64 解析字符串为 int64
 func ParseInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)

@@ -11,20 +11,19 @@ import (
 
 type UploadHandler struct {
 	uploadService *service.UploadService
-	videoService *service.VideoService
+	videoService  *service.VideoService
 }
 
 func NewUploadService(uploadService *service.UploadService, videoService *service.VideoService) *UploadHandler {
 	return &UploadHandler{
 		uploadService: uploadService,
-		videoService: videoService,
+		videoService:  videoService,
 	}
 }
 
 func (h *UploadHandler) InitUpload(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -36,11 +35,7 @@ func (h *UploadHandler) InitUpload(ctx context.Context, c *app.RequestContext) {
 
 	resp, err := h.uploadService.InitUpload(userID, &req)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -48,9 +43,8 @@ func (h *UploadHandler) InitUpload(ctx context.Context, c *app.RequestContext) {
 }
 
 func (h *UploadHandler) UploadChunk(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -80,11 +74,7 @@ func (h *UploadHandler) UploadChunk(ctx context.Context, c *app.RequestContext) 
 	}
 
 	if err := h.uploadService.UploadChunk(userID, &req, chunkData); err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -95,9 +85,8 @@ func (h *UploadHandler) UploadChunk(ctx context.Context, c *app.RequestContext) 
 }
 
 func (h *UploadHandler) GetUploadStatus(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -109,11 +98,7 @@ func (h *UploadHandler) GetUploadStatus(ctx context.Context, c *app.RequestConte
 
 	status, err := h.uploadService.GetUploadStatus(userID, taskID)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -121,9 +106,8 @@ func (h *UploadHandler) GetUploadStatus(ctx context.Context, c *app.RequestConte
 }
 
 func (h *UploadHandler) MergeChunks(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -135,21 +119,13 @@ func (h *UploadHandler) MergeChunks(ctx context.Context, c *app.RequestContext) 
 
 	videoURL, coverURL, taskID, err := h.uploadService.MergeChunks(userID, &req)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeMergeFailed, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
 	status, err := h.uploadService.GetUploadStatus(userID, req.TaskID)
 	if err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -164,7 +140,7 @@ func (h *UploadHandler) MergeChunks(ctx context.Context, c *app.RequestContext) 
 
 	video, err := h.videoService.PublishVideo(userID, title, description, videoURL, coverURL)
 	if err != nil {
-		utils.Error(c, utils.CodeInternalError, "failed to publish video: "+err.Error())
+		utils.HandleError(c, err)
 		return
 	}
 
@@ -178,9 +154,8 @@ func (h *UploadHandler) MergeChunks(ctx context.Context, c *app.RequestContext) 
 }
 
 func (h *UploadHandler) CancelUpload(ctx context.Context, c *app.RequestContext) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		utils.Error(c, utils.CodeUnauthorized, "unauthorized")
+	userID, ok := utils.GetUserID(c)
+	if !ok {
 		return
 	}
 
@@ -191,11 +166,7 @@ func (h *UploadHandler) CancelUpload(ctx context.Context, c *app.RequestContext)
 	}
 
 	if err := h.uploadService.CancelUpload(userID, taskID); err != nil {
-		if appErr, ok := utils.IsAppError(err); ok {
-			utils.Error(c, appErr.Code, appErr.Message)
-		} else {
-			utils.Error(c, utils.CodeInternalError, err.Error())
-		}
+		utils.HandleError(c, err)
 		return
 	}
 
