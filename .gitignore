@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+server
+video
 
 # Test binary, built with `go test -c`
 *.test
@@ -16,6 +18,7 @@ vendor/
 
 # Go workspace file
 go.work
+go.work.sum
 
 # IDE
 .idea/
@@ -33,13 +36,21 @@ uploads/
 logs/
 *.log
 *.tmp
+build.sh
+script/
 
 # Environment
 .env
 .env.local
+.env.*.local
 
 # 测试数据
 apifox-test-data.json
 postman-collection.json
 postman-importable.json
 apifox-config.json
+
+# 其他临时文件
+*.bak
+*.old
+.cache/
