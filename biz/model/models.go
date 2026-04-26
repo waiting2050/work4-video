@@ -91,6 +91,29 @@ type UploadChunk struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
+// ChatMessage 聊天消息记录
+type ChatMessage struct {
+	ID        string         `gorm:"primaryKey;type:varchar(255)" json:"id"`           // 消息ID
+	SenderID  string         `gorm:"index;type:varchar(255)" json:"sender_id"`         // 发送者ID
+	RoomType  string         `gorm:"index;type:varchar(50)" json:"room_type"`         // 房间类型："private"私聊 | "group"群聊
+	RoomID    string         `gorm:"index;type:varchar(255)" json:"room_id"`           // 房间ID
+	Content   string         `gorm:"type:text" json:"content"`                         // 消息内容
+	ReadBy    []string       `gorm:"type:json" json:"read_by"`                         // 已读用户ID列表
+	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`                 // 创建时间
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`                         // 删除时间（软删除）
+}
+
+// ChatRoom 聊天房间
+type ChatRoom struct {
+	ID          string         `gorm:"primaryKey;type:varchar(255)" json:"id"`         // 房间ID
+	Type        string         `gorm:"type:varchar(50)" json:"type"`                 // 房间类型："private"私聊 | "group"群聊
+	Name        string         `gorm:"type:varchar(255)" json:"name"`                 // 群聊名称
+	Members     []string       `gorm:"type:json" json:"members"`                     // 群聊成员ID列表
+	CreatedAt   time.Time      `gorm:"autoCreateTime" json:"created_at"`               // 创建时间
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime" json:"updated_at"`               // 更新时间
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at"`                       // 删除时间（软删除）
+}
+
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&User{},
@@ -100,5 +123,7 @@ func autoMigrate(db *gorm.DB) error {
 		&Like{},
 		&UploadTask{},
 		&UploadChunk{},
+		&ChatMessage{},
+		&ChatRoom{},
 	)
 }

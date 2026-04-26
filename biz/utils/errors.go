@@ -50,6 +50,6 @@ func Wrap(err error, code int, message ...string) error {
 	}
 	return &AppError{
 		Code:    code,
-		Message: msg,
+		Message: msg + ": " + err.Error(),
 	}
 }
