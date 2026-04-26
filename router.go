@@ -24,6 +24,7 @@ func customizedRegister(r *server.Hertz) {
 	socialService := service.NewSocialService(db)
 	uploadService := service.NewUploadService(db)
 	strategyService := service.NewUploadStrategyService(nil)
+	chatService := service.NewChatService(db)
 
 	// 初始化处理器
 	userHandler := handler.NewUserHandler(userService)
@@ -32,6 +33,7 @@ func customizedRegister(r *server.Hertz) {
 	socialHandler := handler.NewSocialHandler(socialService)
 	uploadHandler := handler.NewUploadService(uploadService, videoService)
 	strategyHandler := handler.NewUploadStrategyHandler(strategyService)
+	chatHandler := handler.NewChatHandler(chatService)
 
 	// 认证中间件
 	authMiddleware := auth.AuthMiddleware()
@@ -103,4 +105,7 @@ func customizedRegister(r *server.Hertz) {
 		uploadGroup.POST("/merge", authMiddleware, uploadHandler.MergeChunks)
 		uploadGroup.POST("/cancel", authMiddleware, uploadHandler.CancelUpload)
 	}
+
+	// WebSocket聊天
+	r.GET("/ws", authMiddleware, chatHandler.WebSocket)
 }
