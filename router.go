@@ -18,6 +18,7 @@ func customizedRegister(r *server.Hertz) {
 
 	// 初始化服务
 	db := model.DB
+	cfg := model.LoadConfig()
 	userService := service.NewUserService(db)
 	videoService := service.NewVideoService(db)
 	interactionService := service.NewInteractionService(db)
@@ -25,6 +26,7 @@ func customizedRegister(r *server.Hertz) {
 	uploadService := service.NewUploadService(db)
 	strategyService := service.NewUploadStrategyService(nil)
 	chatService := service.NewChatService(db)
+	aiService := service.NewAIService(cfg.AI)
 
 	// 初始化处理器
 	userHandler := handler.NewUserHandler(userService)
@@ -33,7 +35,7 @@ func customizedRegister(r *server.Hertz) {
 	socialHandler := handler.NewSocialHandler(socialService)
 	uploadHandler := handler.NewUploadService(uploadService, videoService)
 	strategyHandler := handler.NewUploadStrategyHandler(strategyService)
-	chatHandler := handler.NewChatHandler(chatService)
+	chatHandler := handler.NewChatHandler(chatService, aiService)
 
 	// 认证中间件
 	authMiddleware := auth.AuthMiddleware()
